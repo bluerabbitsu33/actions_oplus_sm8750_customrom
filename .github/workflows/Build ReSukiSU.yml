@@ -290,7 +290,8 @@ jobs:
 
           echo "📦 应用lz4补丁..."
           git apply -p1 < 001-lz4.patch || true
-          
+          patch -p1 < 002-zstd.patch || true
+
           echo "📦 正在启用POLLY支持..."
           git apply -p1 < EnablePOLLY.patch || true
 

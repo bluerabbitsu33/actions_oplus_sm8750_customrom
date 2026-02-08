@@ -291,6 +291,7 @@ jobs:
 
           echo "📦 应用lz4补丁..."
           git apply -p1 < 001-lz4.patch || true
+          patch -p1 < 002-zstd.patch || true
 
           if [ "${{ github.event.inputs.SUSFS }}" == "On" ]; then           
             patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true

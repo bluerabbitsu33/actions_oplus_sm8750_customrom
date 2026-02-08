@@ -212,7 +212,8 @@ jobs:
 
           echo "📦 应用lz4补丁..."
           git apply -p1 < 001-lz4.patch || true
-          
+          patch -p1 < 002-zstd.patch || true
+
           echo "📦 应用POLLY补丁..."
           git apply -p1 < EnablePOLLY.patch || true
           
