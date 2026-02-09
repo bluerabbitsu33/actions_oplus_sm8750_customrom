@@ -192,9 +192,13 @@ jobs:
           
           cd kernel_platform
           echo "📝 复制补丁文件..."
+
+          mkdir -p ./common/lib/lz4/lz4armv8
           cp ../kernel_patches/zram/001-lz4.patch ./common/
-          cp ../kernel_patches/zram/lz4armv8.S ./common/lib
+          cp ../kernel_patches/zram/lz4armv8.S ./common/lib/lz4/lz4armv8.S
+          cp ../kernel_patches/zram/lz4armv8.S ./common/lib/lz4/lz4armv8/lz4armv8.S
           cp ../kernel_patches/zram/002-zstd.patch ./common/
+
           cp ../kernel_patches/common/EnablePOLLY.patch ./common/
 
           if [ "${{ github.event.inputs.UNICODE_BYPASS }}" = "On" ]; then

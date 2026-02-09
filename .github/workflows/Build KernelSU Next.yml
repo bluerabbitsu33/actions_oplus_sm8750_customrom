@@ -255,8 +255,10 @@ jobs:
             cp ../kernel_patches/susfs/scope_min_manual_hooks_v1.9.patch ./common/
           fi
 
+          mkdir -p ./common/lib/lz4/lz4armv8
           cp ../kernel_patches/zram/001-lz4.patch ./common/
-          cp ../kernel_patches/zram/lz4armv8.S ./common/lib
+          cp ../kernel_patches/zram/lz4armv8.S ./common/lib/lz4/lz4armv8.S
+          cp ../kernel_patches/zram/lz4armv8.S ./common/lib/lz4/lz4armv8/lz4armv8.S
           cp ../kernel_patches/zram/002-zstd.patch ./common/
           
           if [ "${{ github.event.inputs.UNICODE_BYPASS }}" = "On" ]; then
