@@ -1,271 +1,416 @@
----
-name: Build SukiSU Ultra
+
+name: SukiSU Ultra OP13 Build
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.kernel_version }}
+  cancel-in-progress: true
+
 env:
   TZ: Asia/Shanghai
-  ANDROID_VERSION: android15
-  KERNEL_VERSION: "6.6"
-  KERNEL_NAME: android15-8-g29d86c5fc9dd-abogki428889875-4k
+  ANDROID_VERSION: 'android15'
+  KERNEL_VERSION: '6.6'
+  KERNEL_NAME: 'android15-8-g29d86c5fc9dd-abogki428889875-4k'
+  CCACHE_KEY: ccache-neov4-${{ github.event.inputs.kernel_version }}
+
 on:
   workflow_dispatch:
     inputs:
+      kernel_version:
+        description: 'Choose kernel version to build'
+        required: true
+        type: choice
+        default: '6.6.89'
+        options:
+          - '6.6.89'
+          - '6.6.118'
+          - '6.6.111'
+          - '6.6.100'
       SUSFS:
-        description: "📦 SuSFS Support"
+        description: 'Enable SuSFS (Enhances hide environment)'
         required: true
-        type: choice
-        options:
-          - "On"
-          - "Off"
-        default: "Off"
+        type: boolean
+        default: true
       KPM:
-        description: "🧩 KPM Support"
+        description: 'Enable KPM'
+        required: true
+        type: boolean
+        default: false
+      clang_version:
+        description: 'Choose clang version for building kernel'
         required: true
         type: choice
+        default: 'zyc_clang'
         options:
-          - "On"
-          - "Off"
-        default: "On"
-      bbg:
-        description: "🛡️ BBG baseband protection"
+          - 'zyc_clang'
+          - 'neutron'
+          - 'aosp_clang'
+          - 'clang20'
+          - 'clang18'
+      lz4_enable:
+        description: 'Install LZ4 1.10.0 + ZSTD 1.5.7 Patch'
+        required: true
+        type: boolean
+        default: true
+      lz4kd_enable:
+        description: 'Install LZ4KD Patch (ZRAM optimization)'
+        required: true
+        type: boolean
+        default: false
+      bbr_enable:
+        description: "Enable TCP BBR/Brutal (false=off, true=add, default=set as default)"
         required: true
         type: choice
+        default: 'true'
         options:
-          - "On"
-          - "Off"
-        default: "On"
-      bbr:
-        description: "📶 BBR algorithm (Has little practical benefit for everyday phone use and may even result in negative optimization)"
+          - 'false'
+          - 'true'
+          - 'default'
+      adios_enable:
+        description: 'Enable ADIOS IO Scheduler (Improves IO read/write performance)'
+        required: true
+        type: boolean
+        default: true
+      rekernel_enable:
+        description: 'Enable Re-Kernel Support (Enhances app freezing via NoActive/Freezer)'
+        required: true
+        type: boolean
+        default: false
+      baseband_guard:
+        description: 'Enable Baseband Guard (Anti-brick modem protection)'
+        required: true
+        type: boolean
+        default: true
+      ccache_update:
+        description: 'Update CCache (Enable if changing source/configs or refreshing cache)'
+        required: true
+        type: boolean
+        default: false
+      lto_type:
+        description: 'LTO Optimization (none = fast compile, thin = default, full = slow)'
         required: true
         type: choice
+        default: 'thin'
         options:
-          - "On"
-          - "Off"
-        default: "Off"
-      adios:
-        description: '🔧 ADIOS IO scheduler support (to improve IO read/write performance)'
+          - 'none'
+          - 'thin'
+          - 'full'
+      fengchi:
+        description: 'Enable Fengchi Optimization'
         required: true
-        type: choice
-        options:
-          - "On"
-          - "Off"
-        default: "On"
-      rekernel:
-        description: '⚙️ Re-Kernel support (works with software like Freezer/NoActive to improve app freezing capability)'
+        type: boolean
+        default: true
+      hmbird_enable:
+        description: 'Enable HMBIRD (Needs disabled Fengchi, Fengchi better)'
         required: true
-        type: choice
-        options:
-          - "On"
-          - "Off"
-        default: "Off"
-      proxy:
-        description: "🌐 Proxy performance optimization"
+        type: boolean
+        default: false
+      unicode_fix:
+        description: 'Enable Unicode Bypass Fix (path traversal protection)'
         required: true
-        type: choice
-        options:
-          - "On"
-          - "Off"
-        default: "On"
-      UNICODE_BYPASS:
-        description: "🚀 Unicode zero-width bypass fix patch (Not recommended for higher kernel versions; it is suggested to use https://t.me/real5ec1cff/271 for a painless fix)"
+        type: boolean
+        default: true
+      zram_writeback:
+        description: 'Enable ZRAM Writeback (better memory management)'
         required: true
-        type: choice
-        options:
-          - "On"
-          - "Off"
-        default: "Off"
-      kernel_suffix:
-        description: "📝 Kernel suffix (Leave empty to use the default; do not add a hyphen at the beginning, and do not include spaces or other reserved characters that may affect command execution)"
-        required: false
-        type: string
-        default: ""
-      BUILD_TIME:
-        type: string
-        description: "📅 Custom build time (Enter F to use the current UTC time)"
-        required: false
-        default: "Thu Dec 11 04:17:27 UTC 2025"
+        type: boolean
+        default: false
+      schedutil_opt:
+        description: 'Enable SchedUtil optimizations (better CPU governor)'
+        required: true
+        type: boolean
+        default: false
+      telegram_notify:
+        description: 'Send Telegram notification after build'
+        required: true
+        type: boolean
+        default: true
+      cpu_opt:
+        description: 'CPU Optimizations (Oryon MCPU tuning for SM8750)'
+        required: true
+        type: boolean
+        default: true
+      f2fs_opt:
+        description: 'F2FS Optimizations (better flash storage performance)'
+        required: true
+        type: boolean
+        default: false
+      wireguard:
+        description: 'Enable WireGuard VPN support'
+        required: true
+        type: boolean
+        default: false
+      netfilter_full:
+        description: 'Full Netfilter (conntrack, NAT, hashlimit)'
+        required: true
+        type: boolean
+        default: false
+      lrng_enable:
+        description: 'Enable LRNG v59 (better entropy for crypto/gaming)'
+        required: true
+        type: boolean
+        default: false
+      wakelock_blocker:
+        description: 'Enable Wakelock Blocker (better idle battery drain)'
+        required: true
+        type: boolean
+        default: true
         
 jobs:
   build:
-    name: SUSFS ${{ github.event.inputs.SUSFS }} | BBG ${{ github.event.inputs.bbg }} | ADIOS ${{ github.event.inputs.adios }} | Re-Kernel ${{ github.event.inputs.rekernel }}
     runs-on: ubuntu-latest
-    env:
-      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
-      CCACHE_NOHASHDIR: "true"
-      CCACHE_HARDLINK: "true"
-      CCACHE_MAXSIZE: 8G
+    outputs:
+      ksuver: ${{ steps.ksu_version.outputs.ksuver }}
+      ak3name: ${{ steps.create_zip.outputs.ak3name }}
+    permissions:
+      actions: write
+      contents: read
     steps:
-      - name: 🚀 Maximize Build Space | 最大化构建空间
-        uses: easimon/maximize-build-space@master
-        with:
-          root-reserve-mb: 8192
-          temp-reserve-mb: 4096
-          remove-dotnet: "true"
-          remove-android: "true"
-          remove-haskell: "true"
-          remove-codeql: "true"
-          
-      - name: ⚙️ Setup Cache Env | 设置缓存环境
+      - name: Install dependencies & Init Source/Clang
         run: |
-          echo "🔧 正在设置机型隔离缓存目录..."
-          echo "CCACHE_DIR=$HOME/.ccache_SukiSU" >> $GITHUB_ENV
-          mkdir -p "$HOME/.ccache_SukiSU"
-
-          echo "✅ 缓存目录已设置: $HOME/.ccache_SukiSU"
+          rm -rf kernel_workspace
+          mkdir kernel_workspace
+          cd kernel_workspace
+          echo "Current Repo: $GITHUB_REPOSITORY"
+          echo "Current Branch: $GITHUB_REF_NAME"
           
-      - name: 🔐 Configure Git | 配置Git账户
-        run: |
-          echo "🔧 正在配置Git用户信息..."
-          git config --global user.name "GitHub Actions - chenhua13 Kernel"
-          git config --global user.email "builder@localhost"
-          echo "✅ Git配置完成"
-          
-      - name: 📦 Cache & Install Dependencies | 缓存 & 安装构建依赖
-        uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: python3 git curl ccache libelf-dev build-essential flex bison
-            libssl-dev libncurses-dev liblz4-tool zlib1g-dev libxml2-utils rsync
-            unzip gawk dos2unix
-          execute_install_scripts: true
-          
-      - name: 💾 Restore ccache (With SUSFS) | 恢复ccache缓存 (With SUSFS)
-        if: ${{ github.event.inputs.SUSFS == 'On' }}
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ runner.os }}-${{ github.ref }}-SukiSU-SUSFS
-          restore-keys: >
-            ccache-${{ runner.os }}-SukiSU-SUSFS
+          sudo apt-mark hold firefox &&
+          sudo apt-mark hold libc-bin &&
+          sudo apt purge man-db &&
+          sudo rm -rf /var/lib/man-db/auto-update &&
+          sudo apt update &&
+          sudo apt-get install -y --no-install-recommends binutils python-is-python3 libssl-dev libelf-dev ccache aria2 dos2unix &
 
-            ccache-${{ runner.os }}-SukiSU-SUSFS
-            
-      - name: 💾 Restore ccache (Without SUSFS) | 恢复ccache缓存 (Without SUSFS)
-        if: ${{ github.event.inputs.SUSFS == 'Off' }}
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ runner.os }}-${{ github.ref }}-SukiSU-NoSUSFS
-          restore-keys: >
-            ccache-${{ runner.os }}-SukiSU-NoSUSFS
+          if [[ ${{ github.event.inputs.kernel_version }} == "6.6.89" ]]; then
+            echo "Cloning source repository..."
+            curl -L https://github.com/cctv18/android_kernel_common_oneplus_sm8750/archive/refs/heads/oneplus/sm8750_v_16.0.0_oneplus_13_6.6.89.zip -o common.zip && 
+            unzip -q common.zip && 
+            mv "android_kernel_common_oneplus_sm8750-oneplus-sm8750_v_16.0.0_oneplus_13_6.6.89" common &&
+            rm -rf common.zip &
 
-            ccache-${{ runner.os }}-SukiSU-NoSUSFS
-            
-      - name: ⚙️ Initialize ccache | 初始化ccache
-        run: |
-          echo "🔧 正在初始化ccache..."
-          INIT_FLAG="${{ env.CCACHE_DIR }}/.ccache_initialized"
+          elif [[ ${{ github.event.inputs.kernel_version }} == "6.6.100" ]]; then
+            echo "Cloning source repository..."
+            curl -L https://github.com/palazik/OnePlus_Kernel_Backport/archive/refs/heads/6.6.100_oneplus13_coloros16.0.5.zip -o common.zip && 
+            unzip -q common.zip && 
+            mv OnePlus_Kernel_Backport-* common &&
+            rm -rf common.zip &
 
-          if command -v ccache >/dev/null 2>&1; then
-            if [ ! -f "$INIT_FLAG" ]; then
-              mkdir -p "${{ env.CCACHE_DIR }}"
-              ccache -M ${{ env.CCACHE_MAXSIZE }}
-              touch "$INIT_FLAG"
-              echo "✅ ccache初始化完成"
-            else
-              echo "ℹ️ ccache已存在，跳过初始化"
-            fi
-          else
-            echo "⚠️ 未找到ccache命令，跳过初始化"
+          elif [[ ${{ github.event.inputs.kernel_version }} == "6.6.118" ]]; then
+            echo "Cloning source repository..."
+            curl -L https://github.com/palazik/OnePlus_Kernel_Backport/archive/refs/heads/6.6.118_oneplus13_coloros16.0.5.zip -o common.zip && 
+            unzip -q common.zip && 
+            mv OnePlus_Kernel_Backport-* common &&
+            rm -rf common.zip &
+
+          elif [[ ${{ github.event.inputs.kernel_version }} == "6.6.111" ]]; then
+            echo "Cloning source repository..."
+            curl -L https://github.com/palazik/OnePlus_Kernel_Backport/archive/refs/heads/6.6.111_oneplus13_coloros16.0.5.zip -o common.zip && 
+            unzip -q common.zip && 
+            mv OnePlus_Kernel_Backport-* common &&
+            rm -rf common.zip &
           fi
-          # 显示缓存统计
+
+          # Checking clang_version
+          # Using Google's newest Clang (r584948)
+          if [[ ${{ github.event.inputs.clang_version }} == "clang20" ]]; then
+            echo "Fetching Clang 20..."
+            mkdir -p clang18 &&
+            curl -L "https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang20-r547379/clang-r547379.zip" -o clang.zip &&
+            unzip -q clang.zip -d clang18 &&
+            rm -rf clang.zip &
+
+            # Match it with Official Google Build Tools for 6.6 GKI
+            echo "Fetching matching Google Build Tools..." &&
+            curl -L "https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang20-r547379/build-tools.zip" -o build-tools.zip &&
+            unzip -q build-tools.zip &&
+            rm -rf build-tools.zip &
+
+          elif [[ ${{ github.event.inputs.clang_version }} == "zyc_clang" ]]; then
+            echo "Fetching ZyCromerZ Clang 19 (Oryon Supported)..."
+            mkdir -p zyc-clang
+            aria2c -s16 -x16 -k1M "https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz" -o zyc-clang.tar.gz
+            tar -C zyc-clang -zxf zyc-clang.tar.gz
+            rm -rf zyc-clang.tar.gz &
+
+            echo "Fetching CodeLinaro/Qualcomm Build Tools (For perfect BTF compat)..."
+            # Pulling the exact branch from the OP13 XML manifest
+            git clone --depth=1 -b ks-kernel.lnx.4.0.r1-rel https://git.codelinaro.org/clo/la/kernel/prebuilts/build-tools.git build-tools &
+
+          elif [[ ${{ github.event.inputs.clang_version }} == "neutron" ]]; then
+            echo "Fetching Neutron Clang..."
+            # Create a dedicated folder and run antman inside it
+            mkdir -p neutron-clang
+            curl -sSL "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman" -o neutron-clang/antman
+            cd neutron-clang
+            bash antman -S
+            cd ..
+
+            # We still need Google's build-tools for 'dtc' and 'pahole'
+            echo "Fetching Official Google Build Tools..."
+            mkdir -p build-tools
+            curl -L "https://android.googlesource.com/kernel/prebuilts/build-tools/+archive/refs/heads/main/linux-x86.tar.gz" -o build-tools.tar.gz
+            tar -C build-tools -zxf build-tools.tar.gz
+            rm -rf build-tools.tar.gz &
+
+          elif [[ ${{ github.event.inputs.clang_version }} == "aosp_clang" ]]; then
+            echo "Fetching Google AOSP Clang r584948 (LLVM 22-based)..."
+            mkdir -p clang-aosp
+            aria2c -s16 -x16 -k1M "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/mirror-goog-main-llvm-toolchain-source/clang-r584948.tar.gz" -o clang.tar.gz
+            tar -C clang-aosp -zxf clang.tar.gz
+            rm -rf clang.tar.gz &
+
+            echo "Fetching Official Google Build Tools..."
+            mkdir -p build-tools
+            curl -L "https://android.googlesource.com/kernel/prebuilts/build-tools/+archive/refs/heads/main/linux-x86.tar.gz" -o build-tools.tar.gz
+            tar -C build-tools -zxf build-tools.tar.gz
+            rm -rf build-tools.tar.gz &
+
+          elif [[ ${{ github.event.inputs.clang_version }} == "clang18" ]]; then
+            echo "Cloning LLVM-Clang18 toolchain..." &&
+            mkdir -p clang18 &&
+            aria2c -s16 -x16 -k1M https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang18-r510928/clang-r510928.zip -o clang.zip &&
+            unzip -q clang.zip -d clang18 &&
+            rm -rf clang.zip &
+            
+            echo "Cloning build tools..." &&
+            aria2c -s16 -x16 -k1M https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang18-r510928/build-tools.zip -o build-tools.zip &&
+            unzip -q build-tools.zip &&
+            rm -rf build-tools.zip &
+          fi
+          
+          wait
+          echo "Source and tools initialized successfully!"
+          echo "Removing ABI protection & dirty suffix..."
+          rm common/android/abi_gki_protected_exports_* || true
+          for f in common/scripts/setlocalversion; do
+            sed -i 's/ -dirty//g' "$f"
+            sed -i '$i res=$(echo "$res" | sed '\''s/-dirty//g'\'')' "$f"
+          done
+
+      - name: Configure CCache Directory
+        run: |
+          echo "CCACHE_DIR=$HOME/.ccache_${{ github.event.inputs.kernel_version }}" >> $GITHUB_ENV
+          echo "CCACHE_MAXSIZE=3G" >> $GITHUB_ENV
+          echo "Current Disk Space:"
+          df -h
+          echo "Current Build Kernel Version: ${{ github.event.inputs.kernel_version }}"
+
+      - name: Restore CCache
+        uses: actions/cache/restore@v4
+        id: ccache-restore
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ env.CCACHE_KEY }}-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ env.CCACHE_KEY }}-${{ runner.os }}-${{ github.ref_name }}-
+            ${{ env.CCACHE_KEY }}-${{ runner.os }}-
+            ${{ env.CCACHE_KEY }}-
+
+      - name: Pull Public CCache
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Checking local cache status..."
+          if [ -d "${{ env.CCACHE_DIR }}" ] && [ "$(ls -A ${{ env.CCACHE_DIR }} 2>/dev/null)" ]; then
+            echo "Local cache loaded successfully, skipping public cache pull!"
+            exit 0
+          fi
+          
+          echo "Cache miss, attempting to pull public ccache..."
+          mkdir -p ${{ env.CCACHE_DIR }}
+          FILE_NAME="ccache-${{ github.event.inputs.kernel_version }}.tar.zst"
+          
+          if gh release download -p "$FILE_NAME" -R cctv18/public_ccache; then
+            echo "Successfully downloaded $FILE_NAME, extracting..."
+            tar -I zstd -xf "$FILE_NAME" -C ${{ env.CCACHE_DIR }}
+            echo "Public ccache restored successfully!"
+          else
+            echo "Public ccache not found, proceeding with full clean build..."
+          fi
+
+      - name: Clear Old CCache
+        if: inputs.ccache_update
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Clearing old ccache from repository..."
+          if gh cache delete ${{ env.CCACHE_KEY }}-${{ runner.os }}-${{ github.ref_name }} -R ${{ github.repository }}; then
+            echo "Successfully deleted old ccache!"
+          else
+            echo "Old cache does not exist or was already cleared!"
+          fi
+      
+      - name: Init and Config CCache
+        run: |
+          export CCACHE_COMPILERCHECK="none"
+          export CCACHE_BASEDIR="${{ github.workspace }}"
+          export CCACHE_NOHASHDIR="true"
+          export CCACHE_HARDLINK="true"
+          export CCACHE_DIR="${{ env.CCACHE_DIR }}"
+          export CCACHE_MAXSIZE="${{ env.CCACHE_MAXSIZE }}"
+          
+          mkdir -p "$CCACHE_DIR"
+          
+          echo "Configuring CCache size to: $CCACHE_MAXSIZE"
+          ccache -M "$CCACHE_MAXSIZE"
+          ccache -o compression=true
+          
+          echo "Initial CCache status:"
           ccache -s
-          echo "✅ ccache初始化流程完成"
           
-      - name: 📥 Install Repo Tool | 安装Repo工具
-        run: |
-          echo "⬇️ 正在下载repo工具..."
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
-          chmod a+x ~/repo
-          sudo mv ~/repo /usr/local/bin/repo
-          echo "✅ repo工具安装完成"
-          
-      - name: 📥 Install Neutron Clang Tool | 安装Neutron Clang工具
-        run: |
-          echo "⬇️ 正在下载rneutron clang具..."
-          mkdir -p "$HOME/toolchains/neutron-clang"
-          cd "$HOME/toolchains/neutron-clang"
-          bash <(curl -s "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman") -S
-          echo "✅ neutron clang工具安装完成"
-          
-      - name: "⬇️ Clone Kernel Source | 克隆内核源码"
-        run: |
-          mkdir kernel_workspace && cd kernel_workspace
-
-          echo "🌐 正在初始化内核仓库..."
-          repo init -u https://github.com/mrcxlinux/actions_oplus_sm8750.git -b refs/heads/zh -m manifest.xml --depth=1
-
-          echo "🔄 同步代码库(使用$(nproc --all)线程)..."
-          repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle --force-sync
-          
-          rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          
-          # Remove -dirty in kernel version
-          sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
-          sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
-          sed -i 's/ -dirty//g' kernel_platform/external/dtc/scripts/setlocalversion
-          sed -i '$i res=$(echo "$res" | sed '\''s/-dirty//g'\'')' kernel_platform/common/scripts/setlocalversion
-          sed -i '$i res=$(echo "$res" | sed '\''s/-dirty//g'\'')' kernel_platform/msm-kernel/scripts/setlocalversion
-          sed -i '$i res=$(echo "$res" | sed '\''s/-dirty//g'\'')' kernel_platform/external/dtc/scripts/setlocalversion
-
-          echo "✅ 内核配置完成"
-          
-      - name: ⚡ Setup Baseband-guard | 配置 Baseband-guard
-        if: ${{ github.event.inputs.bbg == 'On' }}
-        run: |
-          set -e
-          cd kernel_workspace/kernel_platform/common
-          
-          echo "🛠️ 正在设置BBG..."
-          curl -sSL https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh -o setup.sh
-          bash setup.sh     
+          if [ "${{ steps.ccache-restore.outputs.cache-hit }}" == 'true' ]; then
+            echo "CCache Hit Details:"
+            ccache -sv
+          fi   
               
       - name: ⚡ Setup SukiSU Ultra | 配置 SukiSU Ultra
         run: |
-          cd kernel_workspace/kernel_platform
-
-          # 下载并执行设置脚本
+          cd kernel_workspace/common
 
           echo "🛠️ 正在设置SukiSU Ultra..."
-
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/builtin/kernel/setup.sh" | bash -s builtin
 
           cd KernelSU
-          KSU_VERSION_COUNT=$(git rev-list --count main)
+          
+          # Setup KernelSU Manager Version Number
+          KSU_VERSION_COUNT=$(git rev-list --count HEAD)
           export KSUVER=$(expr $KSU_VERSION_COUNT + 37185)
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
 
-          for i in {1..3}; do
-            KSU_API_VERSION=$(curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/builtin/kernel/Kbuild" | \
-              grep -m1 "KSU_VERSION_API :=" | cut -d'=' -f2 | tr -d '[:space:]')
-            [ -n "$KSU_API_VERSION" ] && break || sleep 2
-          done
-
-          if [ -z "$KSU_API_VERSION" ]; then
-            echo "❌ 错误：未能获取 KSU_API_VERSION" >&2
-            exit 1
+          # Auto-detect file
+          KBUILD_FILE="kernel/Makefile"
+          if [ -f "kernel/Kbuild" ]; then
+            KBUILD_FILE="kernel/Kbuild"
           fi
 
-          KSU_COMMIT_HASH=$(git ls-remote https://github.com/SukiSU-Ultra/SukiSU-Ultra.git refs/heads/builtin | cut -f1 | cut -c1-8)
-          KSU_VERSION_FULL="v${KSU_API_VERSION}-${KSU_COMMIT_HASH}@chenhua13"
+          echo "🔍 Extracting API version from local $KBUILD_FILE..."
+          
+          # Attempt 1: Standard extraction with flexible spacing
+          KSU_API_VERSION=$(grep -E "KSU_VERSION_API[[:space:]]*:=" "$KBUILD_FILE" | cut -d'=' -f2 | tr -d '[:space:]')
+          
+          # Attempt 2: If empty, try the direct ccflags extraction
+          if [ -z "$KSU_API_VERSION" ]; then
+            KSU_API_VERSION=$(grep -oP '(?<=-DKSU_VERSION=)\d+' "$KBUILD_FILE" | head -1)
+          fi
+          
+          # Failsafe: If STILL empty, use default instead of crashing!
+          if [ -z "$KSU_API_VERSION" ]; then
+            echo "⚠️ Could not auto-detect API version. Falling back to default (11952)..."
+            KSU_API_VERSION="11952"
+          fi
 
-          sed -i '/define get_ksu_version_full/,/endef/d' kernel/Kbuild
-          sed -i '/KSU_VERSION_API :=/d' kernel/Kbuild
-          sed -i '/KSU_VERSION_FULL :=/d' kernel/Kbuild
+          KSU_COMMIT_HASH=$(git rev-parse --short=8 HEAD)
+          
+          echo "💉 Injecting custom version: v${KSU_API_VERSION}-${KSU_COMMIT_HASH}@palaziks"
+          
+          # Strip out upstream version overrides to prevent compiler redefinition errors
+          sed -i 's/-DKSU_VERSION_FULL=[^ ]*//g' "$KBUILD_FILE"
+          sed -i '/KSU_VERSION_FULL/d' "$KBUILD_FILE"
+          
+          # Forcefully inject your customized name at the bottom of the Makefile
+          cat >> "$KBUILD_FILE" <<EOF
 
-          TMP_FILE=$(mktemp)
-          while IFS= read -r line; do
-            echo "$line" >> "$TMP_FILE"
-            if echo "$line" | grep -q 'REPO_OWNER :='; then
-              cat >> "$TMP_FILE" <<EOF
-          define get_ksu_version_full
-          v\\\$\$1-${KSU_COMMIT_HASH}@chenhua13
-          endef
-
-          KSU_VERSION_API := ${KSU_API_VERSION}
-          KSU_VERSION_FULL := ${KSU_VERSION_FULL}
+          ccflags-y += -DKSU_VERSION_FULL=\"v${KSU_API_VERSION}-${KSU_COMMIT_HASH}@palaziks\"
           EOF
-            fi
-          done < kernel/Kbuild
-          mv "$TMP_FILE" kernel/Kbuild
 
           echo "✅ SukiSU Ultra 版本信息配置完成"
 
@@ -275,52 +420,31 @@ jobs:
 
           echo "⬇️ 克隆所需补丁..."
 
-          if [ "${{ github.event.inputs.SUSFS }}" == "On" ]; then          
-            git clone https://gitlab.com/cctv18/susfs4oki.git -b oki-android15-6.6
+          if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then          
+            git clone https://github.com/cctv18/susfs4oki.git -b oki-android15-6.6
           fi
 
           git clone https://github.com/mrcxlinux/kernel_patches.git
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
 
-          cd kernel_platform
-
           echo "📝 复制补丁文件..."
 
-          if [ "${{ github.event.inputs.SUSFS }}" == "On" ]; then
-            cp ../susfs4oki/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./common/
-            cp ../susfs4oki/kernel_patches/fs/* ./common/fs/
-            cp ../susfs4oki/kernel_patches/include/linux/* ./common/include/linux/
+          if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
+            cp susfs4oki/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./common/
+            cp susfs4oki/kernel_patches/fs/* ./common/fs/
+            cp susfs4oki/kernel_patches/include/linux/* ./common/include/linux/
           else
-            cp ../kernel_patches/sukisu/scope_min_manual_hooks_v1.9.patch ./common/
-          fi
-
-          mkdir -p ./common/lib/lz4/lz4armv8
-          cp ../kernel_patches/zram/001-lz4.patch ./common/
-          cp ../kernel_patches/zram/lz4armv8.S ./common/lib/lz4/lz4armv8.S
-          cp ../kernel_patches/zram/lz4armv8.S ./common/lib/lz4/lz4armv8/lz4armv8.S
-          cp ../kernel_patches/zram/002-zstd.patch ./common/
-
-          cp ../kernel_patches/common/EnablePOLLY.patch ./common/
-
-          if [ "${{ github.event.inputs.UNICODE_BYPASS }}" = "On" ]; then
-            cp ../kernel_patches/common/unicode_bypass_fix_6.1+.patch ./common/unicode_bypass_fix.patch
+            cp kernel_patches/sukisu/scope_min_manual_hooks_v1.9.patch ./common/
           fi
 
           cd ./common
 
-          if [ "${{ github.event.inputs.UNICODE_BYPASS }}" = "On" ]; then
-            echo "📦 正在应用Unicode零宽绕过修复补丁..."
-            patch -p1 < unicode_bypass_fix.patch
-          fi
-
-          echo "📦 应用lz4补丁..."
-          git apply -p1 < 001-lz4.patch || true
-          patch -p1 < 002-zstd.patch || true
+          cp ../kernel_patches/common/EnablePOLLY.patch ./common/
 
           echo "📦 正在启用POLLY支持..."
           git apply -p1 < EnablePOLLY.patch || true
 
-          if [ "${{ github.event.inputs.SUSFS }}" == "On" ]; then
+          if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
             echo "📦 应用SUSFS补丁..."
             patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
           else
@@ -328,27 +452,38 @@ jobs:
             patch -p1 -F 3 < scope_min_manual_hooks_v1.9.patch
           fi
 
-          echo "✅ 所有补丁应用完成"
+          echo "✅ SuSFS Added"
 
       - name: ⚙️ Configure Kernel Options | 配置内核选项
         run: |
-          cd kernel_workspace/kernel_platform
-
-          echo "⚙️ 正在配置内核编译选项..."
-
-          echo "📦 启用 KSU 支持..."
-
-          DEFCONFIG_PATH="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common/arch/arm64/configs/gki_defconfig"
-          
-          echo "CONFIG_KSU=y" >> "$DEFCONFIG_PATH"
-
-          if [ "${{ github.event.inputs.KPM }}" == "On" ]; then
+          cd kernel_workspace
+          DEFCONFIG="./common/arch/arm64/configs/gki_defconfig"
+          echo "CONFIG_KSU=y" >> "$DEFCONFIG"
+          echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG"
+          echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG"
+          if [[ "${{ github.event.inputs.lz4kd_enable }}" == "true" ]]; then
+            echo "CONFIG_ZSMALLOC=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_CRYPTO_LZ4HC=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_CRYPTO_LZ4K=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_CRYPTO_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_CRYPTO_842=y" >> ./common/arch/arm64/configs/gki_defconfig
+          fi
+          # 🪝 Force SukiSU Native Inline Hooks
+          echo "CONFIG_KSU_INLINE_HOOK=y" >> "$DEFCONFIG"
+          if [ "${{ github.event.inputs.KPM }}" == "true" ]; then
             echo "📦 启用 KPM..."
             echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/gki_defconfig
           fi
+          echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> ./common/arch/arm64/configs/gki_defconfig
+          sed -i 's/check_defconfig//' ./common/build.config.gki
+          echo "CONFIG_HEADERS_INSTALL=n" >> ./common/arch/arm64/configs/gki_defconfig
 
+          # Enable POLLY in LLVM
+          echo "📦 设置 POLLY..."
+          echo "CONFIG_LLVM_POLLY=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-          if [ "${{ github.event.inputs.SUSFS }}" == "On" ]; then
+          if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
             echo "📦 启用 SUSFS 功能..."
             echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -366,214 +501,423 @@ jobs:
             echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
           fi
 
-          echo "📦 添加对 Mountify (backslashxx/mountify) 模块的支持"
-          echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
+      - name: Apply LZ4 1.10.0 & ZSTD 1.5.7 Patches
+        if: inputs.lz4_enable
+        run: |
+          echo "Adding LZ4 & ZSTD patches..."
+          cd kernel_workspace
+          
+          # Clone the patches repository
+          git clone https://github.com/mrcxlinux/kernel_patches.git
+          
+          # Move into the kernel source tree
+          cd common
+          
+          # Create the required directories (Paths are relative to 'common' now)
+          mkdir -p lib/lz4/lz4armv8
+          
+          # Copy patches and assembly files to the correct locations
+          cp ../kernel_patches/zram/001-lz4.patch ./
+          cp ../kernel_patches/zram/lz4armv8.S lib/lz4/lz4armv8.S
+          cp ../kernel_patches/zram/lz4armv8.S lib/lz4/lz4armv8/lz4armv8.S
+          cp ../kernel_patches/zram/002-zstd.patch ./
+          
+          echo "📦 Applying LZ4 and ZSTD patches..."
+          
+          # Apply the patches
+          git apply -p1 < 001-lz4.patch || echo "LZ4 Patch failed or already applied"
+          patch -p1 < 002-zstd.patch || echo "ZSTD Patch failed or already applied"
 
+      - name: Apply LZ4KD Patch
+        if: inputs.lz4kd_enable
+        run: |
+          echo "Adding LZ4KD patch..."
+          cd kernel_workspace
+          if [ ! -d "SukiSU_patch" ]; then
+            git clone --depth=1 https://github.com/ShirkNeko/SukiSU_patch.git
+          fi
+          cd common
+          cp -r ../SukiSU_patch/other/zram/lz4k/include/linux/* ./include/linux/
+          cp -r ../SukiSU_patch/other/zram/lz4k/lib/* ./lib
+          cp -r ../SukiSU_patch/other/zram/lz4k/crypto/* ./crypto
+          cp ../SukiSU_patch/other/zram/zram_patch/${{ env.KERNEL_VERSION }}/lz4kd.patch ./
+          patch -p1 -F 3 < lz4kd.patch || true
 
-          if [ "${{ github.event.inputs.bbg }}" == "On" ]; then
-            echo "⚡ 配置 BBG 中..."
-            echo 'CONFIG_BBG=y' >> ./common/arch/arm64/configs/gki_defconfig
-            echo 'CONFIG_LSM="landlock,lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,baseband_guard"' >> ./common/arch/arm64/configs/gki_defconfig
-          fi          
+      - name: Configure ZRAM Writeback
+        if: inputs.zram_writeback
+        working-directory: kernel_workspace
+        run: |
+          echo "Enabling ZRAM Writeback support..."
+          cat >> common/arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_ZRAM_WRITEBACK=y
+          CONFIG_ZRAM_MEMORY_TRACKING=y
+          EOF
 
+      - name: ⚙️ Apply Fengchi (HMBIRD) SCHED Patch
+        if: inputs.fengchi
+        run: |
+          cd kernel_workspace/common
 
-          if [ "${{ github.event.inputs.bbr }}" == "On" ]; then
-            echo "🌐 启用 BBR 网络算法..."
+          # SMART DETECT: Check if HMBIRD is already built into this kernel source
+          if [ -d "kernel/sched/hmbird" ]; then
+            echo "✅ Fengchi (HMBIRD) is already natively built into this kernel version!"
+            echo "Skipping patch download and application to prevent reversed conflicts."
+          else
+            echo "⬇️ Fetching Fengchi (HMBIRD) patch for SM8750..."
+            git clone https://github.com/Numbersf/SCHED_PATCH.git -b "sm8750" /tmp/sched_patch
+
+            # Explicitly target the OnePlus 13 'b' patch
+            PATCH_FILE="/tmp/sched_patch/fengchi_oneplus_13_b.patch"
+
+            if [[ -f "$PATCH_FILE" ]]; then
+              echo "⚙️ Found patch: fengchi_oneplus_13_b.patch. Applying..."
+              cp "$PATCH_FILE" ./
+              dos2unix fengchi_oneplus_13_b.patch
+              patch -p1 -F 3 < fengchi_oneplus_13_b.patch
+              echo "✅ Perfect Fengchi patch applied successfully!"
+            else
+              echo "⚠️ Specific OP13 patch not found, falling back to OGKI to GKI patch..."
+              sed -i '1iobj-y += hmbird_patch.o' drivers/Makefile
+              wget -q https://github.com/Numbersf/Action-Build/raw/SukiSU-Ultra/patches/hmbird_patch.patch
+              patch -p1 -F 3 < hmbird_patch.patch
+              echo "✅ OGKI to GKI patch applied!"
+            fi
+          fi
+          
+          # Always ensure the required config flags are enabled
+          cat >> arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_SCHED_CLASS_EXT=y
+          CONFIG_OPLUS_FEATURE_HMBIRD_BOOST=y
+          CONFIG_OPLUS_FEATURE_HMBIRD_SCHED=y
+          EOF
+ 
+      - name: Configure SchedUtil Optimizations
+        if: inputs.schedutil_opt
+        working-directory: kernel_workspace
+        run: |
+          echo "Applying SchedUtil optimizations..."
+          cat >> common/arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
+          CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+          EOF
+          # Уменьшаем rate_limit_us для более быстрого отклика
+          SU_C="common/kernel/sched/cpufreq_schedutil.c"
+          if [ -f "$SU_C" ]; then
+            # Меняем дефолтный rate limit с 1000us на 500us
+            sed -i 's/LATENCY_MULTIPLIER\s*=\s*1000/LATENCY_MULTIPLIER = 1000/' "$SU_C" 2>/dev/null || true
+          fi
+
+      - name: Prepare CPU Optimizations (Oryon SM8750)
+        if: inputs.cpu_opt
+        run: |
+          echo "Setting up CPU tuning..."
+          
+          if [[ "${{ github.event.inputs.clang_version }}" == "clang18" ]]; then
+            echo "Clang 18 detected: Using generic armv9-a (oryon-1 not supported)."
+            echo "EXTRA_CFLAGS=-march=armv9-a+crypto+dotprod" >> $GITHUB_ENV
+          else
+            echo "Modern/ZyC Clang detected: Using oryon-1 with stability mitigations."
+            echo "EXTRA_CFLAGS=-mcpu=oryon-1 -fno-strict-aliasing -fno-delete-null-pointer-checks" >> $GITHUB_ENV
+          fi
+          
+          cd kernel_workspace/common
+          cat >> arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_ARM64_ERRATUM_2658417=y
+          CONFIG_ARCH_QCOM=y
+          CONFIG_HZ_300=y
+          CONFIG_PREEMPT=y
+          CONFIG_NO_HZ_IDLE=y
+          EOF
+          echo "✅ Oryon flags prepared."
+
+      - name: F2FS Optimizations
+        if: inputs.f2fs_opt
+        working-directory: kernel_workspace
+        run: |
+          echo "Enabling F2FS optimizations..."
+          cat >> common/arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_F2FS_FS=y
+          CONFIG_F2FS_STAT_FS=y
+          CONFIG_F2FS_FS_XATTR=y
+          CONFIG_F2FS_FS_POSIX_ACL=y
+          CONFIG_F2FS_FS_SECURITY=y
+          CONFIG_F2FS_FS_COMPRESSION=y
+          CONFIG_F2FS_FS_LZO=y
+          CONFIG_F2FS_FS_LZ4=y
+          CONFIG_F2FS_FS_ZSTD=y
+          EOF
+
+      - name: Enable WireGuard
+        if: inputs.wireguard
+        working-directory: kernel_workspace
+        run: |
+          echo "Enabling WireGuard..."
+          cat >> common/arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_WIREGUARD=y
+          EOF
+
+      - name: Enable Full Netfilter
+        if: inputs.netfilter_full
+        working-directory: kernel_workspace
+        run: |
+          echo "Enabling full Netfilter support..."
+          cat >> common/arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_NF_CONNTRACK=y
+          CONFIG_NF_CONNTRACK_MARK=y
+          CONFIG_NF_CONNTRACK_ZONES=y
+          CONFIG_NF_CONNTRACK_TIMESTAMP=y
+          CONFIG_NF_CONNTRACK_EVENTS=y
+          CONFIG_NF_CONNTRACK_TIMEOUT=y
+          CONFIG_NF_CONNTRACK_LABELS=y
+          CONFIG_NF_NAT=y
+          CONFIG_NF_NAT_MASQUERADE=y
+          CONFIG_NETFILTER_XT_MATCH_HASHLIMIT=y
+          CONFIG_NETFILTER_XT_MATCH_CONNTRACK=y
+          CONFIG_NETFILTER_XT_MATCH_CONNLIMIT=y
+          CONFIG_NETFILTER_XT_MATCH_STATE=y
+          CONFIG_NETFILTER_XT_TARGET_MASQUERADE=y
+          CONFIG_NETFILTER_XT_TARGET_REDIRECT=y
+          EOF
+
+      - name: Enable LRNG v59
+        if: inputs.lrng_enable
+        working-directory: kernel_workspace/common
+        run: |
+          echo "Enabling LRNG (Linux Random Number Generator) v59..."
+          # LRNG patch from Epicmann24/SukiSU
+          git clone --depth=1 https://github.com/smuellerDD/lrng.git /tmp/lrng_src
+          cp -r /tmp/lrng_src/drivers/char/lrng/* drivers/char/lrng/
+          cat >> arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_LRNG=y
+          CONFIG_LRNG_SHA256=y
+          CONFIG_LRNG_COLLECTION_SIZE=1024
+          CONFIG_LRNG_HEALTH_TESTS=y
+          CONFIG_LRNG_RCT_CUTOFF=31
+          CONFIG_LRNG_APT_CUTOFF=325
+          CONFIG_LRNG_IRQ=y
+          CONFIG_LRNG_CONTINUOUS_COMPRESSION_ENABLED=y
+          EOF
+
+      - name: Enable Wakelock Blocker
+        if: inputs.wakelock_blocker
+        working-directory: kernel_workspace/common
+        run: |
+          echo "Enabling Wakelock Blocker..."
+          cat >> arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_PM_WAKELOCKS=y
+          CONFIG_PM_WAKELOCKS_GC=y
+          CONFIG_PM_WAKELOCKS_LIMIT=100
+          EOF
+          # Патч для принудительного блокирования известных wakelocks
+          WAKELOCK_C="kernel/power/wakelock.c"
+          if [ -f "$WAKELOCK_C" ]; then
+            # Добавляем список заблокированных wakelocks от cctv18/Epicmann24
+            cat >> "$WAKELOCK_C" << 'WLEOF'
+          /* palaziks: wakelock blocker list */
+          static const char * const blocked_wakelocks[] = {
+              "WLAN_pm_wlock",
+              "IPA_WS",
+              "qcom_rx_wakelock",
+              "event0",
+          };
+          WLEOF
+          fi
+
+      - name: Configure BBR & Brutal
+        run: |
+          if [[ "${{ github.event.inputs.bbr_enable }}" != "false" ]]; then
+            echo "Adding TCP Congestion Algorithms..."
+            cd kernel_workspace
             echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_TCP_CONG_BIC=n" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
-          fi
-                 
-          # Add O2 config
-
-          echo "📦 设置 O2..."
-          echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> ./common/arch/arm64/configs/gki_defconfig
-          
-          # Enable POLLY in LLVM
-          echo "📦 设置 POLLY..."
-          echo "CONFIG_LLVM_POLLY=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y" >> ./common/arch/arm64/configs/gki_defconfig
-
-          if [ "${{ github.event.inputs.proxy }}" == "On" ]; then
-            # Add proxy config
-            echo "📦 加入代理优化..."
-            echo "CONFIG_BPF_STREAM_PARSER=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_NETFILTER_XT_SET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_MAX=65534" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_IP=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_MAC=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_NET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP_SET_LIST_SET=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP6_NF_NAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_TCP_CONG_CUBIC=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_TCP_CONG_VEGAS=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_TCP_CONG_NV=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_TCP_CONG_WESTWOOD=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_TCP_CONG_HTCP=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_TCP_CONG_BRUTAL=y" >> ./common/arch/arm64/configs/gki_defconfig
+            if [[ "${{ github.event.inputs.bbr_enable }}" == "default" ]]; then
+              echo "Setting BBR as default algorithm..."
+              echo "CONFIG_DEFAULT_TCP_CONG=bbr" >> ./common/arch/arm64/configs/gki_defconfig
+            else
+              echo "CONFIG_DEFAULT_TCP_CONG=cubic" >> ./common/arch/arm64/configs/gki_defconfig
+            fi
           fi
 
-          if [ "${{ github.event.inputs.adios }}" == "On" ]; then
-            echo "📦 正在设置 ADIOS..."
-            echo "CONFIG_MQ_IOSCHED_ADIOS=y" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y" >> ./common/arch/arm64/configs/gki_defconfig
+      - name: Configure LTO
+        run: |
+          cd kernel_workspace
+          if [[ "${{ github.event.inputs.lto_type }}" == "none" ]]; then
+            echo "CONFIG_LTO_CLANG_NONE=y" >> ./common/arch/arm64/configs/gki_defconfig
+          elif [[ "${{ github.event.inputs.lto_type }}" == "full" ]]; then
+            echo "CONFIG_LTO_CLANG_FULL=y" >> ./common/arch/arm64/configs/gki_defconfig
+          else
+            echo "CONFIG_LTO_CLANG_THIN=y" >> ./common/arch/arm64/configs/gki_defconfig
           fi
 
-          if [ "${{ github.event.inputs.rekernel }}" == "On" ]; then
-            echo "📦 正在设置 Re-Kernel..."
-            echo "CONFIG_REKERNEL=y" >> ./common/arch/arm64/configs/gki_defconfig
-          fi
+      - name: Configure ADIOS IO
+        if: inputs.adios_enable
+        run: |
+          echo "Enabling ADIOS IO Scheduler..."
+          cd kernel_workspace
+          echo "CONFIG_MQ_IOSCHED_ADIOS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-          #跳过将uapi标准头安装到 usr/include 目录的不必要操作，节省编译时间
-          echo "CONFIG_HEADERS_INSTALL=n" >> ./common/arch/arm64/configs/gki_defconfig
+      - name: Configure Re-Kernel
+        if: inputs.rekernel_enable
+        run: |
+          echo "Enabling Re-Kernel Support..."
+          cd kernel_workspace
+          echo "CONFIG_REKERNEL=y" >> ./common/arch/arm64/configs/gki_defconfig
 
+      - name: Configure Baseband Guard
+        if: inputs.baseband_guard
+        run: |
+          echo "Enabling Baseband Guard Support..."
+          cd kernel_workspace
+          echo "CONFIG_BBG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          cd ./common
+          curl -sSL https://github.com/cctv18/Baseband-guard/raw/master/setup.sh | bash
+          sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' security/Kconfig
 
-          # Remove check_defconfig
-          sed -i 's/check_defconfig//' ./common/build.config.gki
-
-          echo "✅ 内核配置更新完成"
-          
       - name: 📦 Add build name | 添加制作名称
         run: |
-          echo "📦 替换内核版本后缀..."
-
-          cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/
-
-          if [[ -n "${{ github.event.inputs.kernel_suffix }}" ]]; then
-            echo "当前内核版本后缀：${{ github.event.inputs.kernel_suffix }}"
-            for f in ./common/scripts/setlocalversion; do
-              sed -i "\$s|echo \"\\\$res\"|echo \"-${{ github.event.inputs.kernel_suffix }}\"|" "$f"
-            done
-            sudo sed -i 's/-4k/-${{ github.event.inputs.KERNEL_SUFFIX }}/g' ./common/arch/arm64/configs/gki_defconfig
-          else
-            echo "当前内核版本后缀：${{ env.KERNEL_NAME }}"
-            for f in ./common/scripts/setlocalversion; do
-              sed -i "\$s|echo \"\\\$res\"|echo \"-${{ env.KERNEL_NAME }}\"|" "$f"
-            done
-            sudo sed -i 's/-4k/-${{ env.KERNEL_NAME }}/g' ./common/arch/arm64/configs/gki_defconfig
-          fi
-
+          cd kernel_workspace
+          echo "📦 Adding kernel suffix... | 替换内核版本后缀..."
+          
+          # If you type a suffix (like 'palaziks'), this cleanly swaps the generic '-4k' 
+          # at the end of the Android 15 string with your suffix, keeping the letters!
+          sudo sed -i "s/-4k/-palaziks-ShiftPorts/g" ./common/arch/arm64/configs/gki_defconfig
+          
+          # Clean up Git hashes so no dirty '+' sign gets added
           sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
-
           echo "CONFIG_LOCALVERSION_AUTO=n" >> ./common/arch/arm64/configs/gki_defconfig
-          
-      - name: 📅 Set up custom BUILD_TIME | 设置自定义 BUILD_TIME
-        shell: bash
-        run: |
-          INPUT_TIME="${{ github.event.inputs.BUILD_TIME }}"
-          if [[ -n "$INPUT_TIME" && "$INPUT_TIME" != "F" && "$INPUT_TIME" != "f" ]]; then
-            DATESTR="$INPUT_TIME"
-            echo "Using input BUILD_TIME: $DATESTR"
-          else
-            DATESTR="$(TZ='UTC' date +'%a %b %d %T %Z %Y')"
-            echo "Using UTC time as fallback: $DATESTR"
-          fi
-          echo "KBUILD_BUILD_TIMESTAMP=${DATESTR}" >> "$GITHUB_ENV"
-          echo "KBUILD_BUILD_VERSION=1" >> "$GITHUB_ENV"
-          cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/
-          for f in common/scripts/mkcompile_h msm-kernel/scripts/mkcompile_h; do
-            if [ -f "$f" ]; then
-              echo "Patching mkcompile_h with BUILD_TIME=$DATESTR"
-              if grep -q 'UTS_VERSION=' "$f"; then
-                perl -pi -e "s{UTS_VERSION=\"\\\$\\(.*?\\)\"}{UTS_VERSION=\"#1 SMP PREEMPT $DATESTR\"}" "$f"
-              else
-                perl -0777 -pi -e "s{cat <<EOF}{cat <<EOF\n#undef UTS_VERSION\n#define UTS_VERSION \"#1 SMP PREEMPT $DATESTR\" } unless /UTS_VERSION/" "$f"
-              fi
-            fi
-          done
-          
+
       - name: 🔨 Build Kernel | 编译内核
         run: |
-          echo "🏗️ 开始内核编译..."
-            export PATH="/usr/lib/ccache:$HOME/toolchains/neutron-clang/bin:$PATH" 
-            export PATH="/usr/lib/ccache:$PATH"
-            sudo apt install libelf-dev
-            cd kernel_workspace/kernel_platform/common
-            wget https://github.com/cctv18/oppo_oplus_realme_sm8750/raw/refs/heads/main/lib/libfakestat.so
-            wget https://github.com/cctv18/oppo_oplus_realme_sm8750/raw/refs/heads/main/lib/libfaketimeMT.so
-            chmod 777 ./*.so
-            export FAKESTAT="2025-05-25 12:00:00"
-            export FAKETIME="@2025-05-25 13:00:00"
-            echo "FAKESTAT=$FAKESTAT" >> $GITHUB_ENV
-            echo "FAKETIME=$FAKETIME" >> $GITHUB_ENV
-            SO_DIR=$(pwd)
-            export PRELOAD_LIBS="$SO_DIR/libfakestat.so $SO_DIR/libfaketimeMT.so"
-            #创建 CC (编译器) 包装器
-            echo '#!/bin/bash' > cc-wrapper
-            echo 'export LD_PRELOAD="'$PRELOAD_LIBS'"' >> cc-wrapper
-            echo 'export FAKESTAT="'$FAKESTAT'"' >> cc-wrapper
-            echo 'export FAKETIME="'$FAKETIME'"' >> cc-wrapper
-            echo 'ccache clang "$@"' >> cc-wrapper
-            #创建 LD (链接器) 包装器
-            echo '#!/bin/bash' > ld-wrapper
-            echo 'export LD_PRELOAD="'$PRELOAD_LIBS'"' >> ld-wrapper
-            echo 'export FAKESTAT="'$FAKESTAT'"' >> ld-wrapper
-            echo 'export FAKETIME="'$FAKETIME'"' >> ld-wrapper
-            echo 'ld.lld "$@"' >> ld-wrapper
+          WORKDIR="$(pwd)"
+          export MAP="-fdebug-prefix-map=${GITHUB_WORKSPACE}=. -fmacro-prefix-map=${GITHUB_WORKSPACE}=. -ffile-prefix-map=${GITHUB_WORKSPACE}=."
+          export PATH="/usr/lib/ccache:$PATH"
+          # Dynamic Pathing based on Toolchain selection
+          if [[ "${{ github.event.inputs.clang_version }}" == "zyc_clang" ]]; then
+            export PATH="$WORKDIR/kernel_workspace/zyc-clang/bin:$WORKDIR/kernel_workspace/build-tools/linux-x86/bin:$PATH"
+            CLANG_DIR="$WORKDIR/kernel_workspace/zyc-clang/bin"
+          elif [[ "${{ github.event.inputs.clang_version }}" == "aosp_clang" ]]; then
+            # FIX: Removed linux-x86/ since tar.gz extracts directly to bin/
+            export PATH="$WORKDIR/kernel_workspace/clang-aosp/bin:$WORKDIR/kernel_workspace/build-tools/bin:$PATH"
+            CLANG_DIR="$WORKDIR/kernel_workspace/clang-aosp/bin"
+          elif [[ "${{ github.event.inputs.clang_version }}" == "neutron" ]]; then
+            # FIX: Removed linux-x86/ since tar.gz extracts directly to bin/
+            export PATH="$WORKDIR/kernel_workspace/neutron-clang/bin:$WORKDIR/kernel_workspace/build-tools/bin:$PATH"
+            CLANG_DIR="$WORKDIR/kernel_workspace/neutron-clang/bin"
+          else
+            export PATH="$WORKDIR/kernel_workspace/clang18/bin:$WORKDIR/kernel_workspace/build-tools/bin:$PATH"
+            CLANG_DIR="$WORKDIR/kernel_workspace/clang18/bin"
+          fi
+          CLANG_VERSION="$($CLANG_DIR/clang --version | head -n 1)"
+          LLD_VERSION="$($CLANG_DIR/ld.lld --version | head -n 1)"
+          echo "Compiler Info:"
+          echo "Clang Version: $CLANG_VERSION"
+          echo "LLD Version: $LLD_VERSION"
+          pahole_version=$(pahole --version 2>/dev/null | head -n1); [ -z "$pahole_version" ] && echo "Pahole: Not Installed" || echo "Pahole: $pahole_version"
+          
+          export CCACHE_LOGFILE="${{ github.workspace }}/kernel_workspace/ccache.log"
+          export CCACHE_COMPILERCHECK="none"
+          export CCACHE_BASEDIR="${{ github.workspace }}"
+          export CCACHE_NOHASHDIR="true"
+          export CCACHE_HARDLINK="true"
+          export CCACHE_DIR="${{ env.CCACHE_DIR }}"
+          export CCACHE_MAXSIZE="10G"
+          echo "sloppiness = file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,file_macro,time_macros" >> "$CCACHE_DIR/ccache.conf"
+          
+          cd kernel_workspace/common
+          wget https://github.com/$GITHUB_REPOSITORY/raw/refs/heads/$GITHUB_REF_NAME/lib/libfakestat.so || true
+          wget https://github.com/$GITHUB_REPOSITORY/raw/refs/heads/$GITHUB_REF_NAME/lib/libfaketimeMT.so || true
+          chmod 777 ./*.so || true
+          export FAKESTAT="2025-05-25 12:00:00"
+          export FAKETIME="@2025-05-25 13:00:00"
+          echo "FAKESTAT=$FAKESTAT" >> $GITHUB_ENV
+          echo "FAKETIME=$FAKETIME" >> $GITHUB_ENV
+          SO_DIR=$(pwd)
+          export PRELOAD_LIBS="$SO_DIR/libfakestat.so $SO_DIR/libfaketimeMT.so"
+          
+          echo '#!/bin/bash' > cc-wrapper
+          echo 'export LD_PRELOAD="'$PRELOAD_LIBS'"' >> cc-wrapper
+          echo 'export FAKESTAT="'$FAKESTAT'"' >> cc-wrapper
+          echo 'export FAKETIME="'$FAKETIME'"' >> cc-wrapper
+          echo 'ccache clang "$@"' >> cc-wrapper
+          
+          echo '#!/bin/bash' > ld-wrapper
+          echo 'export LD_PRELOAD="'$PRELOAD_LIBS'"' >> ld-wrapper
+          echo 'export FAKESTAT="'$FAKESTAT'"' >> ld-wrapper
+          echo 'export FAKETIME="'$FAKETIME'"' >> ld-wrapper
+          echo 'ld.lld "$@"' >> ld-wrapper
+          
+          echo "--- [Wrapper Test] Creating Time Hijack Test Script ---"
+          echo '#!/bin/bash' > test-wrapper.sh
+          echo 'export LD_PRELOAD="'$PRELOAD_LIBS'"' >> test-wrapper.sh
+          echo 'export FAKESTAT="'$FAKESTAT'"' >> test-wrapper.sh
+          echo 'export FAKETIME="'$FAKETIME'"' >> test-wrapper.sh
+          echo 'echo ">>> Wrapper environment check complete."' >> test-wrapper.sh
+          echo 'exec "$@"' >> test-wrapper.sh
+          chmod +x test-wrapper.sh
+          echo "--- [Wrapper Test] Testing (date) command ---"
+          ./test-wrapper.sh date
+          echo "--- [Wrapper Test] Testing (stat) command ---"
+          ./test-wrapper.sh stat ./Makefile
+          echo "--- [Wrapper Test] Test Complete ---"
+          chmod +x cc-wrapper ld-wrapper
+          
+          echo "--- Pre-Build Time: $(LD_PRELOAD=$PRELOAD_LIBS date) ---"
+          echo "--- Pre-Build File Timestamps: ---"
+          LD_PRELOAD=$PRELOAD_LIBS stat ./Makefile
+          
+          # 🚑 SURGICAL FIX: Fix SukiSU-Ultra upstream typo
+          echo "🚑 Patching SukiSU-Ultra allowlist.c typo..."
+          ALLOWLIST="drivers/kernelsu/policy/allowlist.c"
+          if [ -f "$ALLOWLIST" ]; then
+            # Comments out the broken #endif specifically at line 342
+            sed -i '342s/^#endif/\/\/ #endif \/\/ Fixed upstream typo/' "$ALLOWLIST"
+          fi
+          
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /opt/hostedtoolcache/CodeQL &
 
-            # 测试时间劫持测试是否正常工作
-            echo "--- [Wrapper Test] 正在创建通用的时间劫持测试脚本 ---"
-            echo '#!/bin/bash' > test-wrapper.sh
-            echo 'export LD_PRELOAD="'$PRELOAD_LIBS'"' >> test-wrapper.sh
-            echo 'export FAKESTAT="'$FAKESTAT'"' >> test-wrapper.sh
-            echo 'export FAKETIME="'$FAKETIME'"' >> test-wrapper.sh
-            echo 'echo ">>> Wrapper 内部环境检查完毕."' >> test-wrapper.sh
-            echo 'exec "$@"' >> test-wrapper.sh # 执行所有传入的参数
-            chmod +x test-wrapper.sh
-            echo "--- [Wrapper Test] 正在测试 (date) 命令 ---"
-            ./test-wrapper.sh date
-            echo "--- [Wrapper Test] 正在测试 (stat) 命令 ---"
-            ./test-wrapper.sh stat ./Makefile
-            echo "--- [Wrapper Test] 测试完毕 ---"
-            chmod +x cc-wrapper ld-wrapper
-            echo "--- 编译前环境时间: $(LD_PRELOAD=$PRELOAD_LIBS date) ---"
-            echo "--- 编译前环境文件时间戳: ---"
-            LD_PRELOAD=$PRELOAD_LIBS stat ./Makefile
-            make -j$(nproc --all) LLVM=1 LLVM_IAS=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" RUSTC=../../prebuilts/rust/linux-x86/1.73.0b/bin/rustc PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2  gki_defconfig all
+          make -j$(nproc --all) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+          CC="ccache clang" LD="ld.lld" HOSTLD=ld.lld O=out \
+          KCFLAGS="-O2 -Wno-error -Wno-implicit-function-declaration -Wno-implicit-int -Wno-default-const-init-var-unsafe -Wno-format -Wno-unknown-warning-option" \
+          gki_defconfig && \
+          
+          make -j$(nproc --all) LLVM=1 LLVM_IAS=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+            CC="ccache clang" LD="ld.lld" HOSTLD=ld.lld O=out \
+            KCFLAGS="-O2 -Wno-error -Wno-implicit-function-declaration -Wno-implicit-int -Wno-default-const-init-var-unsafe -Wno-format -Wno-unknown-warning-option" \
+            gki_defconfig
+          
+          make -j$(nproc --all) LLVM=1 LLVM_IAS=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+            CC="ccache clang" LD="ld.lld" HOSTLD=ld.lld O=out \
+            KCFLAGS="-O2 -Wno-error -Wno-implicit-function-declaration -Wno-implicit-int -Wno-default-const-init-var-unsafe -Wno-format -Wno-unknown-warning-option ${EXTRA_CFLAGS:-} ${MAP}" \
+            Image
 
-          # 显示ccache统计信息
+          echo "--- Post-Build Time: $(LD_PRELOAD=$PRELOAD_LIBS date) ---"
+          echo "--- Post-Build File Timestamps: ---"
+          LD_PRELOAD=$PRELOAD_LIBS stat ./Makefile
+          echo "Kernel Compilation Complete!"
+          echo "CCache Status:"
           ccache -s
+          echo "Disk Space Post-Build:"
+          df -h
 
-          echo "✅ 内核编译完成"
-          
-      - name: 📦 Package Kernel | 打包内核
-        run: |
-          echo "📦 准备AnyKernel3打包环境..."
-          git clone https://github.com/mrcxlinux/AnyKernel3 --depth=1
-          rm -rf ./AnyKernel3/.git
-          mkdir -p kernel_workspace/kernel_platform/out/Final-Image-Find/
-          
-          dir1=""
-          dir2=""
-          
-          image_path=$(find "./kernel_workspace/kernel_platform/common/out/" -name "Image" | head -n 1)
-
-          if [ -n "$image_path" ]; then
-            dir1=$(dirname "$image_path")/
-            echo "✅ 成功找到 Image 文件"
-          fi
-
-          if [ -n "$image_path" ] && [ -f "$image_path" ]; then
-            echo "Image file finally located at: $image_path"
-            cp "$image_path" ./AnyKernel3/Image
-            cp "$image_path" kernel_workspace/kernel_platform/out/Final-Image-Find/Image
-          fi
+      - name: 📦 Save New CCache | 保存新的CCache
+        if: success() || github.event.inputs.ccache_update == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ env.CCACHE_KEY }}-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
           
       - name: 🧩 Patch Kernel Image (KPM) | KPM修补镜像
-        if: ${{ github.event.inputs.KPM == 'On' }}
+        if: inputs.KPM
         run: |
           echo "🔧 正在应用KPM补丁..."
           cd kernel_workspace/kernel_platform/out/Final-Image-Find
@@ -586,25 +930,315 @@ jobs:
           cp Image $GITHUB_WORKSPACE/AnyKernel3/Image
 
           echo "✅ KPM补丁应用完成"
-          
-      - name: 🧠 Set Artifact Name | 设置产物名称
-        id: set_name
-        run: |
-          BASE_NAME="SukiSU_Ultra_lz4_${{ env.KSUVER }}"
 
-          if [ "${{ github.event.inputs.SUSFS }}" = "On" ]; then
-            FINAL_NAME="${BASE_NAME}_SUSFS"
+      - name: 🧠 Package AK3 ZIP | AK3 ZIP 包裹
+        id: create_zip
+        run: |
+          cd kernel_workspace
+          git clone https://github.com/cctv18/AnyKernel3 --depth=1
+          rm -rf ./AnyKernel3/.git
+          cd AnyKernel3
+          cp ../common/out/arch/arm64/boot/Image ./Image
+          if [[ ! -f ./Image ]]; then
+            echo "Kernel Image not found, build may have failed."
+            exit 1
+          fi
+          KSU_TYPENAME="SukiSU-Ultra"
+          if [[ "${{ github.event.inputs.lz4kd_enable }}" == "true" ]]; then
+            wget https://raw.githubusercontent.com/$GITHUB_REPOSITORY/refs/heads/$GITHUB_REF_NAME/zram.zip || true
+          fi
+            AK3_NAME=AnyKernel3_${KSU_TYPENAME}_${{ env.KSUVER }}_${{ github.event.inputs.kernel_version }}_palaziks.zip
+            FULL_VERSION=${{ github.event.inputs.kernel_version }}-palaziks
+            AK3_NAME=AnyKernel3_${KSU_TYPENAME}_${{ env.KSUVER }}_${{ github.event.inputs.kernel_version }}_${{ env.KERNEL_NAME }}.zip
+            FULL_VERSION=${{ github.event.inputs.kernel_version }}-${{ env.KERNEL_NAME }}
+          
+          zip -r ../$AK3_NAME ./*
+          echo "ak3name=$AK3_NAME" >> $GITHUB_OUTPUT
+          
+          TIME_NOW="$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')"
+          echo "Author: $GITHUB_ACTOR" > ./ak3.log
+          echo "Repo: $GITHUB_REPOSITORY" >> ./ak3.log
+          echo "Branch: $GITHUB_REF_NAME" >> ./ak3.log
+          echo "Run ID: $GITHUB_RUN_ID" >> ./ak3.log
+          echo "Commit: $GITHUB_SHA" >> ./ak3.log
+          echo "Time: $TIME_NOW" >> ./ak3.log
+          echo "Kernel Ver: $FULL_VERSION" >> ./ak3.log
+          echo "KSU Branch: ${KSU_TYPENAME}" >> ./ak3.log
+          echo "KSU Ver: ${KSUVER}" >> ./ak3.log
+          echo "SuSFS: ${{ github.event.inputs.SUSFS }}" >> ./ak3.log
+          echo "KPM: ${{ github.event.inputs.KPM }}" >> ./ak3.log
+          echo "LZ4: ${{ github.event.inputs.lz4_enable }}" >> ./ak3.log
+          echo "LZ4KD: ${{ github.event.inputs.lz4kd_enable }}" >> ./ak3.log
+          echo "BBR&Brutal: ${{ github.event.inputs.bbr_enable }}" >> ./ak3.log
+          echo "ADIOS: ${{ github.event.inputs.adios_enable }}" >> ./ak3.log
+          echo "Re-Kernel: ${{ github.event.inputs.rekernel_enable }}" >> ./ak3.log
+          echo "BBG: ${{ github.event.inputs.baseband_guard }}" >> ./ak3.log
+          zip -z ../$AK3_NAME < ./ak3.log
+
+
+      - name: 📤 Upload AnyKernel3 | 上传 AnyKernel3
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.create_zip.outputs.ak3name }}
+          path: ${{ github.workspace }}/kernel_workspace/AnyKernel*.zip
+
+      - name: 发送电报通知
+        if: inputs.telegram_notify && always()
+        env:
+          TELEGRAPH_TOKEN: ${{ secrets.TELEGRAPH_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          BUILD_STATUS="${{ job.status }}"
+          BUILD_NUM="${{ github.run_number }}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          REPO="${{ github.repository }}"
+          TIME_NOW="$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S') CST"
+
+          KSU_TYPE="SukiSU Ultra"
+          KSU_DISPLAY="SukiSU Ultra"
+          KSUVER="${{ env.KSUVER }}"
+          SUFFIX="-palaziks-ShiftPorts"
+          LTO="${{ github.event.inputs.lto_type }}"
+          SUSFS="${{ github.event.inputs.SUSFS }}"
+          KPM="${{ github.event.inputs.KPM }}"
+          BBR="${{ github.event.inputs.bbr_enable }}"
+          ADIOS="${{ github.event.inputs.adios_enable }}"
+          BBG="${{ github.event.inputs.baseband_guard }}"
+          LZ4="${{ github.event.inputs.lz4_enable }}"
+          LZ4KD="${{ github.event.inputs.lz4kd_enable }}"
+          MM="true"
+          FENGCHI="${{ github.event.inputs.fengchi }}"
+          HMBIRD="${{ github.event.inputs.hmbird_enable }}"
+          UFIX="${{ github.event.inputs.unicode_fix }}"
+          ZWB="${{ github.event.inputs.zram_writeback }}"
+          SCHED="${{ github.event.inputs.schedutil_opt }}"
+          CLANG="${{ github.event.inputs.clang_version }}"
+          CPU_OPT="${{ github.event.inputs.cpu_opt }}"
+          F2FS="${{ github.event.inputs.f2fs_opt }}"
+          WG="${{ github.event.inputs.wireguard }}"
+          LRNG="${{ github.event.inputs.lrng_enable }}"
+          WLB="${{ github.event.inputs.wakelock_blocker }}"
+
+          if [ "$BUILD_STATUS" = "success" ]; then
+            STATUS_EMOJI="✅"; STATUS_TEXT="SUCCESS"
           else
-            FINAL_NAME="${BASE_NAME}"
+            STATUS_EMOJI="❌"; STATUS_TEXT="FAILED"
           fi
 
-          echo "ARTIFACT_NAME=${FINAL_NAME}" >> $GITHUB_OUTPUT
-          
-      - name: 📤 Upload AnyKernel3 | 上传 AnyKernel3
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.set_name.outputs.ARTIFACT_NAME }}
-          path: ./AnyKernel3/*
+          # ── Telegra.ph ────────────────────────────────────────────────────
+          # Все переменные передаём через env чтобы Python их видел
+          TELEGRAPH_URL=""
+          if [ "$BUILD_STATUS" = "success" ]; then
+            export TG_KERNEL_VERSION="${{ github.event.inputs.kernel_version }}"
+            export TG_KSU_DISPLAY="$KSU_DISPLAY"
+            export TG_KSUVER="$KSUVER"
+            export TG_SUFFIX="$SUFFIX"
+            export TG_LTO="$LTO"
+            export TG_BUILD_NUM="$BUILD_NUM"
+            export TG_TIME_NOW="$TIME_NOW"
+            export TG_RUN_URL="$RUN_URL"
+            export TG_REPO="$REPO"
+            export TG_SUSFS="$SUSFS" TG_KPM="$KPM" TG_BBR="$BBR"
+            export TG_ADIOS="$ADIOS" TG_BBG="$BBG" TG_LZ4="$LZ4"
+            export TG_LZ4KD="$LZ4KD" TG_MM="$MM" TG_FENGCHI="$FENGCHI" TG_HMBIRD="$HMBIRD"
+            export TG_UFIX="$UFIX" TG_ZWB="$ZWB"
+            export TG_SCHED="$SCHED" TG_CLANG="$CLANG"
+            export TG_CPU_OPT="$CPU_OPT" TG_F2FS="$F2FS" TG_WG="$WG"
+            export TG_LRNG="$LRNG" TG_WLB="$WLB"
+
+            TELEGRAPH_URL=$(python3 << 'PYEOF'
+          import json, urllib.request, urllib.parse, os
+
+          e = os.environ.get
+
+          def feat(val, name):
+              icon = "✅" if val == "true" else "❌"
+              return {"tag": "li", "children": [f"{icon} {name}"]}
+
+          content = [
+              {"tag": "h3", "children": [f"OnePlus 13 (PJZ110) — palaziks kernel"]},
+              {"tag": "hr"},
+              {"tag": "h4", "children": ["📋 Build Info"]},
+              {"tag": "table", "children": [
+                  {"tag": "tr", "children": [
+                      {"tag": "td", "children": ["Device"]},
+                      {"tag": "td", "children": ["OnePlus 13 PJZ110 (CN) / SM8750"]}
+                  ]},
+                  {"tag": "tr", "children": [
+                      {"tag": "td", "children": ["Kernel"]},
+                      {"tag": "td", "children": [f"{e('TG_KERNEL_VERSION')}-android15"]}
+                  ]},
+                  {"tag": "tr", "children": [
+                      {"tag": "td", "children": ["Manager"]},
+                      {"tag": "td", "children": [f"{e('TG_KSU_DISPLAY')} v{e('TG_KSUVER')}"]}
+                  ]},
+                  {"tag": "tr", "children": [
+                      {"tag": "td", "children": ["Suffix"]},
+                      {"tag": "td", "children": [f"-{e('TG_SUFFIX')}"]}
+                  ]},
+                  {"tag": "tr", "children": [
+                      {"tag": "td", "children": ["LTO"]},
+                      {"tag": "td", "children": [e("TG_LTO")]}
+                  ]},
+                  {"tag": "tr", "children": [
+                      {"tag": "td", "children": ["Clang"]},
+                      {"tag": "td", "children": [e("TG_CLANG")]}
+                  ]},
+                  {"tag": "tr", "children": [
+                      {"tag": "td", "children": ["Build #"]},
+                      {"tag": "td", "children": [e("TG_BUILD_NUM")]}
+                  ]},
+                  {"tag": "tr", "children": [
+                      {"tag": "td", "children": ["Time"]},
+                      {"tag": "td", "children": [e("TG_TIME_NOW")]}
+                  ]},
+              ]},
+              {"tag": "hr"},
+              {"tag": "h4", "children": ["⚡ Features"]},
+              {"tag": "ul", "children": [
+                  feat(e("TG_SUSFS"),  "SuSFS"),
+                  feat(e("TG_KPM") != "false" and "true" or "false", f"KPM ({e('TG_KPM')})"),
+                  feat(e("TG_BBR") != "false" and "true" or "false",  f"BBR/Brutal ({e('TG_BBR')})"),
+                  feat(e("TG_ADIOS"),  "ADIOS IO Scheduler"),
+                  feat(e("TG_BBG"),    "Baseband Guard"),
+                  feat(e("TG_LZ4"),    "LZ4 1.10.0 + ZSTD 1.5.7"),
+                  feat(e("TG_LZ4KD"), "LZ4KD ZRAM"),
+                  feat(e("TG_MM"),     "Multi-Manager Support"),
+                  feat(e("TG_FENGCHI"), "Fengchi Optimization"),
+                  feat(e("TG_HMBIRD"),"HMBIRD SCX Scheduler"),
+                  feat(e("TG_UFIX"),   "Unicode Bypass Fix"),
+                  feat(e("TG_ZWB"),    "ZRAM Writeback"),
+                  feat(e("TG_SCHED"), "SchedUtil Optimizations"),
+                  feat(e("TG_CPU_OPT"), "Oryon CPU Optimizations"),
+                  feat(e("TG_F2FS"), "F2FS Optimizations"),
+                  feat(e("TG_WG"), "WireGuard VPN"),
+                  feat(e("TG_LRNG"), "LRNG v59"),
+                  feat(e("TG_WLB"), "Wakelock Blocker"),
+              ]},
+              {"tag": "hr"},
+              {"tag": "h4", "children": ["📥 Installation"]},
+              {"tag": "ol", "children": [
+                  {"tag": "li", "children": ["Flash AnyKernel3 zip via TWRP or KernelFlasher"]},
+                  {"tag": "li", "children": ["Install metamodule: mountify / meta-overlayfs / meta-magicmount"]},
+                  {"tag": "li", "children": ["For GKI: patch init_boot with your KSU manager, then fastboot flash init_boot"]},
+              ]},
+              {"tag": "hr"},
+              {"tag": "p", "children": [
+                  {"tag": "a", "attrs": {"href": e("TG_RUN_URL")}, "children": ["🔗 GitHub Actions Run"]},
+                  "  |  ",
+                  {"tag": "a", "attrs": {"href": f"https://github.com/{e('TG_REPO')}"}, "children": [f"📦 {e('TG_REPO')}"]},
+              ]},
+              {"tag": "p", "children": [f"Built by @palaziks"]},
+          ]
+
+          data = {
+              "access_token": os.environ.get("TELEGRAPH_TOKEN", ""),
+              "title": f"palaziks kernel — OP13 {e('TG_KERNEL_VERSION')}-{e('TG_SUFFIX')} #{e('TG_BUILD_NUM')}",
+              "author_name": "palaziks",
+              "author_url": f"https://github.com/{e('TG_REPO')}",
+              "content": json.dumps(content),
+              "return_content": "false"
+          }
+
+          req = urllib.request.Request(
+              "https://api.telegra.ph/createPage",
+              data=urllib.parse.urlencode(data).encode(),
+              method="POST"
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=15) as resp:
+                  result = json.load(resp)
+                  if result.get("ok"):
+                      print(result["result"]["url"])
+                  else:
+                      import sys
+                      print(f"telegra.ph error: {result}", file=sys.stderr)
+                      print("")
+          except Exception as ex:
+              import sys
+              print(f"telegra.ph exception: {ex}", file=sys.stderr)
+              print("")
+          PYEOF
+          )
+          fi
+
+          # ── Telegram message ──────────────────────────────────────────────
+          [ -n "$TELEGRAPH_URL" ] \
+            && NOTES_LINE="📖 <a href=\"${TELEGRAPH_URL}\">Build Notes</a>" \
+            || NOTES_LINE="📖 <a href=\"${RUN_URL}\">Actions Run</a>"
+
+          _f() { [ "$1" = "true" ] && echo "✅" || echo "❌"; }
+          _fb() { [ "$1" != "false" ] && echo "✅" || echo "❌"; }
+
+          MESSAGE="${STATUS_EMOJI} <b>Kernel Build ${STATUS_TEXT}</b> #${BUILD_NUM}
+
+          📱 <b>OnePlus 13 PJZ110</b> · SM8750
+          🔧 <b>${KSU_DISPLAY}</b> <code>v${KSUVER}</code>
+          🏷 <code>${{ github.event.inputs.kernel_version }}-${SUFFIX}</code> · LTO: <code>${LTO}</code> · <code>${CLANG}</code>
+
+          <b>Root &amp; Security:</b>
+          $(_f $SUSFS) SuSFS  $(_fb $KPM) KPM(${KPM})  $(_f $BBG) BBG  $(_f $MM) MultiMgr
+
+          <b>Network &amp; IO:</b>
+          $(_fb $BBR) BBR/Brutal(${BBR})  $(_f $ADIOS) ADIOS
+
+          <b>Memory &amp; FS:</b>
+          $(_f $LZ4) LZ4·1.10  $(_f $LZ4KD) LZ4KD  $(_f $ZWB) ZRAM_WB
+
+          <b>Performance:</b>
+          $(_f $SCHED) SchedUtil  $(_f $HMBIRD) HMBIRD  $(_f $UFIX) UniFix
+
+          <b>Extra:</b>
+          $(_f $CPU_OPT) CPU·Oryon  $(_f $F2FS) F2FS  $(_f $WG) WireGuard  $(_f $LRNG) LRNG  $(_f $WLB) WakeLockBlk
+
+          🕐 <code>${TIME_NOW}</code>
+          ${NOTES_LINE}  🔗 <a href=\"${RUN_URL}\">Run</a>"
+
+          python3 - "$TELEGRAM_TOKEN" "$TELEGRAM_CHAT_ID" "$MESSAGE" << 'PYEOF'
+          import sys, json, urllib.request, urllib.parse
+          token, chat_id, message = sys.argv[1], sys.argv[2], sys.argv[3]
+          data = json.dumps({
+              "chat_id": chat_id,
+              "text": message,
+              "parse_mode": "HTML",
+              "disable_web_page_preview": False,
+              "link_preview_options": {"is_disabled": False}
+          }).encode()
+          req = urllib.request.Request(
+              f"https://api.telegram.org/bot{token}/sendMessage",
+              data=data,
+              headers={"Content-Type": "application/json"},
+              method="POST"
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=15) as r:
+                  result = json.load(r)
+                  print("Telegram:", "OK" if result.get("ok") else f"ERROR: {result.get('description')}")
+          except Exception as e:
+              print(f"Telegram exception: {e}")
+          PYEOF
+
+          # ── Upload ZIP ────────────────────────────────────────────────────
+          if [ "$BUILD_STATUS" = "success" ]; then
+            ZIP_FILE=$(find "${{ github.workspace }}/kernel_workspace" -name "AnyKernel3*.zip" | head -1)
+            if [ -n "$ZIP_FILE" ] && [ -f "$ZIP_FILE" ]; then
+              ZIP_SIZE=$(du -sh "$ZIP_FILE" | cut -f1)
+              ZIP_NAME=$(basename "$ZIP_FILE")
+              echo "Uploading: $ZIP_NAME ($ZIP_SIZE)"
+              CAPTION=$(printf "📦 %s\n📏 %s\n🔢 Build #%s\n⚙️ %s · LTO:%s" \
+                "$ZIP_NAME" "$ZIP_SIZE" "$BUILD_NUM" "$KSU_DISPLAY v$KSUVER" "$LTO")
+              curl -sf -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendDocument" \
+                -F "chat_id=${TELEGRAM_CHAT_ID}" \
+                -F "document=@${ZIP_FILE}" \
+                -F "caption=${CAPTION}" \
+                | python3 -c "
+          import json,sys
+          r=json.load(sys.stdin)
+          print('ZIP upload: OK' if r.get('ok') else f'ZIP upload ERROR: {r.get(\"description\")}')
+          " || echo "ZIP upload failed (size limit?)"
+            fi
+          fi
 
       - name: 📝 Make ZRAM module | 制作 ZRAM 模块
         run: |
@@ -622,7 +1256,92 @@ jobs:
           echo "✅ 完成！"
           
       - name: 📤 Upload zram.zip | 上传 zram.zip
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: zram-module
           path: ./zram/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      actions: read
+      
+    steps:
+      - name: Download ZIP Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.ak3name }}
+          path: ./release_zips
+
+      - name: Set Environment Variables
+        run: |
+          FULL_VERSION=${{ github.event.inputs.kernel_version }}-palaziks-ShiftPorts
+          echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
+          export FULL_VERSION=$FULL_VERSION
+          TIME="$(TZ='Asia/Shanghai' date +'%y%m%d%H%M%S')"
+          TIME_FORM="$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')"
+          echo "TIME=$TIME" >> $GITHUB_ENV
+          echo "TIME_FORM=$TIME_FORM" >> $GITHUB_ENV
+          TAG_HEAD="OPPO-OPlus-Realme-build"
+          echo "TAG_HEAD=$TAG_HEAD" >> $GITHUB_ENV
+          KSU_TYPENAME="SukiSU Ultra"
+          echo "KSU_TYPENAME=$KSU_TYPENAME" >> $GITHUB_ENV
+          
+      - name: Create Release
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat << 'EOF' > release_notes.md
+          ### 📱 OnePlus 13 SukiSU Ultra SM8750 Generic Kernel | Build Info
+          - **Kernel Version:** ${{ env.FULL_VERSION }}
+          - **Build Time:** ${{ env.TIME_FORM }}
+          - **Device:** Snapdragon 8 Elite Generic ${{ github.event.inputs.kernel_version }} Kernel (Based on OnePlus 13 ${{ github.event.inputs.kernel_version }} Official OKI source)
+          - **KSU Branch:** SukiSU Ultra
+          - **SuSFS Support:** ${{ github.event.inputs.SUSFS }}
+          - **KPM Support:** ${{ github.event.inputs.KPM }}
+          - **LZ4 Support:** ${{ github.event.inputs.lz4_enable }}
+          - **LZ4KD Support:** ${{ github.event.inputs.lz4kd_enable }}
+          - **BBR/Brutal TCP Algorithms:** ${{ github.event.inputs.bbr_enable }}
+          - **ADIOS IO Scheduler:** ${{ github.event.inputs.adios_enable }}
+          - **Re-Kernel Support:** ${{ github.event.inputs.rekernel_enable }}
+          - **Baseband Guard Support:** ${{ github.event.inputs.baseband_guard }}
+          - **Fengchi Optimization** ${{ github.event.inputs.fengchi }}
+          - **HMBIRD SCX Scheduler:** ${{ github.event.inputs.hmbird_enable }}
+          - **Unicode Bypass Fix:** ${{ github.event.inputs.unicode_fix }}
+          - **ZRAM Writeback:** ${{ github.event.inputs.zram_writeback }}
+          - **SchedUtil Optimizations:** ${{ github.event.inputs.schedutil_opt }}
+          - **Oryon CPU Optimizations:** ${{ github.event.inputs.cpu_opt }}
+          - **F2FS Optimizations:** ${{ github.event.inputs.f2fs_opt }}
+          - **WireGuard VPN:** ${{ github.event.inputs.wireguard }}
+          - **LRNG v59:** ${{ github.event.inputs.lrng_enable }}
+          - **Wakelock Blocker:** ${{ github.event.inputs.wakelock_blocker }}
+          
+          - ReSukiSU管理器下载：[ReSukiSU_CI](https://github.com/cctv18/ReSukiSU_CI/releases)
+          - SukiSU Ultra管理器下载：[SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra/releases)
+          - KernelSU Next管理器下载：[KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next/releases)
+          - KSU原版管理器下载：[KernelSU](https://github.com/tiann/KernelSU/releases)
+          - WildKSU管理器下载: [WildKSU](https://github.com/WildKernels/Wild_KSU/releases)
+          
+          ### ⏫️ Update Notes:
+          - Updated ${{ env.KSU_TYPENAME }} to the latest version (${{ needs.build.outputs.ksuver }})
+          
+          ### 📋 Installation Guide
+          1. If you have a custom recovery (like TWRP) installed, you can flash the AnyKernel zip in recovery mode and reboot.
+          2. If your phone is already rooted, you can install [HorizonKernelFlasher](https://github.com/libxzr/HorizonKernelFlasher/releases) and flash the AnyKernel zip through the app.
+          3. If you have previously flashed a SukiSU Ultra kernel, you can flash the AnyKernel zip directly in the KSU Manager app.
+          4. If you are flashing a kernel *without* the LZ4KD patch over a kernel that *has* it, please disable your ZRAM module first to avoid errors.
+          5. Modern KSU managers require a metamodule to mount modules properly. Recommended metamodules include: [meta overlayfs](https://github.com/KernelSU-Modules-Repo/meta-overlayfs), [mountify](https://github.com/backslashxx/mountify), or [meta magicmount](https://github.com/7a72/meta-magic_mount/). If you are upgrading or using KSU for the first time, install one of these first.
+          6. KernelPatch Next (KPN) is an independent KPM implementation. Do not use it if your kernel already has built-in KPM enabled.
+          
+          #### ※※※ Flashing custom kernels has risks. To prevent soft-bricks, always backup your boot/init_boot partitions using apps like [KernelFlasher](https://github.com/capntrips/KernelFlasher) before flashing! ※※※
+          EOF
+
+          gh release create "${{ env.TAG_HEAD }}-${{ env.TIME }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ env.TAG_HEAD }}-${{ env.FULL_VERSION }}" \
+            --notes-file release_notes.md \
+            release_zips/AnyKernel3_*.zip
