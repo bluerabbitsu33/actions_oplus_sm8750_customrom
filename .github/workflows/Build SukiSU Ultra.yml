@@ -1,4 +1,3 @@
-
 name: SukiSU Ultra OP13 Build
 
 concurrency:
@@ -460,9 +459,6 @@ jobs:
           if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
             echo "📦 应用SUSFS补丁..."
             patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-          else
-            echo "📦 应用MANUAL_HOOK补丁..."
-            patch -p1 -F 3 < scope_min_manual_hooks_v1.9.patch
           fi
 
           echo "✅ SuSFS Added"
@@ -481,8 +477,6 @@ jobs:
             echo "CONFIG_CRYPTO_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_CRYPTO_842=y" >> ./common/arch/arm64/configs/gki_defconfig
           fi
-          # 🪝 Force SukiSU Native Inline Hooks
-          echo "CONFIG_KSU_INLINE_HOOK=y" >> "$DEFCONFIG"
           if [ "${{ github.event.inputs.KPM }}" == "true" ]; then
             echo "📦 启用 KPM..."
             echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -496,6 +490,8 @@ jobs:
           echo "CONFIG_LLVM_POLLY=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y" >> ./common/arch/arm64/configs/gki_defconfig
 
+          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./common/arch/arm64/configs/gki_defconfig
+
           if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
             echo "📦 启用 SUSFS 功能..."
             echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -508,10 +504,13 @@ jobs:
             echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_KSU_SUSFS_SUS_MAP=y" >> ./common/arch/arm64/configs/gki_defconfig
-          else 
-            echo "📦 启用 MANUAL_HOOK..."
-            echo "CONFIG_KSU_SUSFS=n" >> ./common/arch/arm64/configs/gki_defconfig
-            echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig
           fi
 
       - name: Apply LZ4 1.10.0 & ZSTD 1.5.7 Patches
@@ -1017,6 +1016,11 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
+          DATE=$(date +"%Y-%m-%d %H:%M:%S %Z")
+          COMMIT_MSG="Workflow Dispatch: ${{ github.event.inputs.kernel_version }}"
+          COMMIT_HASH=$(echo "${{ github.sha }}" | cut -c1-8)
+          REPO_URL="https://github.com/${{ github.repository }}"
+
           KSU_TYPE="SukiSU Ultra"
           KSU_DISPLAY="SukiSU Ultra"
           KSUVER="${{ env.KSUVER }}"
@@ -1041,10 +1045,6 @@ jobs:
           WG="${{ github.event.inputs.wireguard }}"
           LRNG="${{ github.event.inputs.lrng_enable }}"
           WLB="${{ github.event.inputs.wakelock_blocker }}"
-          DATE=$(date +"%Y-%m-%d %H:%M:%S %Z")
-          COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          REPO_URL="https://github.com/${{ github.repository }}"
 
           # ── Telegra.ph ────────────────────────────────────────────────────
           # Все переменные передаём через env чтобы Python их видел
@@ -1207,8 +1207,8 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ vars.CHAT_ID }}
         run: |
           DATE=$(date +"%Y-%m-%d %H:%M:%S %Z")
-          COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
-          COMMIT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_MSG="Workflow Dispatch: ${{ github.event.inputs.kernel_version }}"
+          COMMIT_HASH=$(echo "${{ github.sha }}" | cut -c1-8)
           REPO_URL="https://github.com/${{ github.repository }}"
           
           CAPTION="❌ <b>SukiSU Ultra Build Failed!</b>
