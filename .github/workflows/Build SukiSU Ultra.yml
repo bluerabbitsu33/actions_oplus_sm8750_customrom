@@ -305,32 +305,31 @@ jobs:
       - name: 🔧 Fix missing KSU static key symbols
         working-directory: kernel_workspace/common/drivers/kernelsu
         run: |
-          if grep -r "DEFINE_STATIC_KEY_FALSE(ksu_is_input_hook_enabled)" . \
-               --include="*.c" > /dev/null 2>&1; then
-            echo "Symbols already defined, skipping."
-            exit 0
+          KSUD="ksud.c"
+
+          # Fix 1: define the key_false structs that are only extern'd under SUSFS+STATIC_KEY
+          # Insert definitions right after the extern block
+          if ! grep -q "STATIC_KEY_FALSE_INIT" "$KSUD"; then
+            sed -i 's|extern struct static_key_false ksu_input_hook_key_false;|struct static_key_false ksu_input_hook_key_false = STATIC_KEY_FALSE_INIT;\nEXPORT_SYMBOL_GPL(ksu_input_hook_key_false);|' "$KSUD"
+            sed -i 's|extern struct static_key_false ksu_init_rc_hook_key_false;|struct static_key_false ksu_init_rc_hook_key_false = STATIC_KEY_FALSE_INIT;\nEXPORT_SYMBOL_GPL(ksu_init_rc_hook_key_false);|' "$KSUD"
+            echo "✅ key_false structs defined"
+          else
+            echo "key_false structs already defined, skipping"
           fi
 
-          KSUD="runtime/ksud.c"
-          [ ! -f "$KSUD" ] && KSUD="ksud.c"
-
-          grep -q "jump_label.h" "$KSUD" || sed -i '1i #include <linux/jump_label.h>' "$KSUD"
-
-          echo "" >> "$KSUD"
-          echo "/* palaziks: MANUAL_HOOK build - static keys normally from input_hook.c */" >> "$KSUD"
-          echo "#ifndef KSU_INPUT_HOOK_KEYS_DEFINED" >> "$KSUD"
-          echo "#define KSU_INPUT_HOOK_KEYS_DEFINED" >> "$KSUD"
-          echo "DEFINE_STATIC_KEY_FALSE(ksu_is_input_hook_enabled);" >> "$KSUD"
-          echo "EXPORT_SYMBOL_GPL(ksu_is_input_hook_enabled);" >> "$KSUD"
-          echo "DEFINE_STATIC_KEY_FALSE(ksu_is_init_rc_hook_enabled);" >> "$KSUD"
-          echo "EXPORT_SYMBOL_GPL(ksu_is_init_rc_hook_enabled);" >> "$KSUD"
-          echo "struct static_key ksu_input_hook_key_false = STATIC_KEY_INIT_FALSE;" >> "$KSUD"
-          echo "EXPORT_SYMBOL_GPL(ksu_input_hook_key_false);" >> "$KSUD"
-          echo "struct static_key ksu_init_rc_hook_key_false = STATIC_KEY_INIT_FALSE;" >> "$KSUD"
-          echo "EXPORT_SYMBOL_GPL(ksu_init_rc_hook_key_false);" >> "$KSUD"
-          echo "#endif" >> "$KSUD"
-
-          echo "✅ Static key definitions injected into $KSUD"
+          # Fix 2: define ksu_is_* static keys which are missing entirely in MANUAL_HOOK mode
+          if ! grep -q "DEFINE_STATIC_KEY_FALSE(ksu_is_input_hook_enabled)" "$KSUD"; then
+            grep -q "jump_label.h" "$KSUD" || sed -i '1i #include <linux/jump_label.h>' "$KSUD"
+            echo "" >> "$KSUD"
+            echo "/* palaziks: MANUAL_HOOK - ksu_is_* keys missing from input_hook.c */" >> "$KSUD"
+            echo "DEFINE_STATIC_KEY_FALSE(ksu_is_input_hook_enabled);" >> "$KSUD"
+            echo "EXPORT_SYMBOL_GPL(ksu_is_input_hook_enabled);" >> "$KSUD"
+            echo "DEFINE_STATIC_KEY_FALSE(ksu_is_init_rc_hook_enabled);" >> "$KSUD"
+            echo "EXPORT_SYMBOL_GPL(ksu_is_init_rc_hook_enabled);" >> "$KSUD"
+            echo "✅ ksu_is_* static keys defined"
+          else
+            echo "ksu_is_* keys already defined, skipping"
+          fi
 
       - name: 🔧 Setup Patches
         run: |
@@ -881,7 +880,7 @@ jobs:
           df -h
 
       - name: 📦 Save New CCache
-        if: success()
+        if: always()
         uses: actions/cache/save@v4
         with:
           path: ${{ env.CCACHE_DIR }}
