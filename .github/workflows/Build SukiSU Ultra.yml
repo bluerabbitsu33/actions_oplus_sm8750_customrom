@@ -1158,7 +1158,7 @@ jobs:
           CAPTION="✅ <b>Kernel Build Successful!</b>
 
           📱 <b>Device:</b> <code>OnePlus 13</code>
-          ⚡ <b>KSU:</b> <code>SukiSU Ultra/code>
+          ⚡ <b>KSU:</b> <code>SukiSU Ultra</code>
           📅 <b>Date:</b> $DATE
           📝 <b>Commit:</b> <code>$COMMIT_MSG</code>
           🔢 <b>Hash:</b> <a href=\"$REPO_URL/commit/${{ github.sha }}\">$COMMIT_HASH</a>
@@ -1182,7 +1182,7 @@ jobs:
           CAPTION="❌ <b>Kernel Build Failed!</b>
 
           📱 <b>Device:</b> <code>OnePlus 13</code>
-          ⚡ <b>KSU:</b> <code>SukiSU Ultra/code>
+          ⚡ <b>KSU:</b> <code>SukiSU Ultra</code>
           📅 <b>Date:</b> $DATE
           📝 <b>Commit:</b> <code>$COMMIT_MSG</code>
           🔢 <b>Hash:</b> <a href=\"$REPO_URL/commit/${{ github.sha }}\">$(echo "${{ github.sha }}" | cut -c1-8)</a>"
