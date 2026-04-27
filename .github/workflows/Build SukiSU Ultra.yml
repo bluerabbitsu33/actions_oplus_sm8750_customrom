@@ -280,7 +280,6 @@ jobs:
           ccache -o compression=true
           ccache -o compiler_check=none
           ccache -o hash_dir=false
-          ccache -o run_second_cpp=false
           ccache -o base_dir="${{ github.workspace }}"
           ccache -o sloppiness=file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,file_macro,time_macros,locale
 
