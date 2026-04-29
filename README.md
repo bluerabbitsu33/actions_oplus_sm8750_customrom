@@ -1,7 +1,7 @@
 <div id="toc" align="center" style="margin-bottom: 0; padding-bottom: 0;">
   <ul style="list-style: none; margin: 0; padding: 0;">
     <summary>
-      <h1 align="center" style="margin: 0; padding: 0;">⋆. 𐙚˚࿔ chenhua13 OnePlus Kernel 𝜗𝜚˚⋆</h1>
+      <h1 align="center" style="margin: 0; padding: 0;">⋆. 𐙚˚࿔ palaziks OnePlus Kernel 𝜗𝜚˚⋆</h1>
       <p align="center" style="font-size:12px; margin-top: 5px; margin-bottom: 20px;">
   <a href="https://github.com/mrcxlinux/actions_oplus_sm8750/tree/english">English Version</a> | 
   <a href="https://github.com/mrcxlinux/actions_oplus_sm8750/tree/zh">中文版本</a>
@@ -52,9 +52,11 @@
 
 ➜ Unicode Bypass (you can use an **LSPosed module** to fix this painlessly)
 
+➜ And more features.. (Read latest GitHub Release)
+
 ### 🤖 Compiler changes
 
-➜ Neutron Clang
+➜ ZyC   Clang
 
 ➜ Merge assembler with compiler
 
@@ -71,8 +73,6 @@
 
 ➜ choose your preferred variant
 
-➜ choose your **language** (only for **configuring** the kernel) ➜ branch: **english** | **zh**
-
 ➜ configure it according to your **preferences**
 
 ➜ run workflow
@@ -81,16 +81,6 @@
 ### 📱 Supported devices
 
 > OnePlus 13
-> 
-> OnePlus 13S/T
-> 
-> OnePlus Ace 5 Pro
-> 
-> OnePlus Ace 6
-> 
-> OnePlus Pad 2 Pro
-> 
-> OnePlus Pad 3
 
 ---
 ### Credits ⸜(｡˃ ᵕ ˂ )⸝♡
