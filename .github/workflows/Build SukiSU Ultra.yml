@@ -425,12 +425,19 @@ jobs:
           echo "⬇️ Cloning required patch repos..."
 
           if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then         
-            git clone --depth=1 https://github.com/cctv18/susfs4oki.git -b oki-android15-6.6 &
+            git clone https://github.com/cctv18/susfs4oki.git -b oki-android15-6.6 &
           fi
           git clone --depth=1 https://github.com/mrcxlinux/kernel_patches.git &
           git clone --depth=1 https://github.com/ShirkNeko/SukiSU_patch.git &
           git clone --depth=1 https://github.com/TheWildJames/kernel_patches.git wildkernels_patches &
           wait
+
+          if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
+            echo "⏪ Rolling back susfs4oki to working commit (e7dd154)..."
+            cd susfs4oki
+            git checkout e7dd154
+            cd ..
+          fi
 
           echo "📝 Copying patch files..."
 
@@ -455,23 +462,6 @@ jobs:
           fi
 
           echo "✅ Base patches applied"
-
-      - name: 🚑 Fix SukiSU-Ultra Compile Errors
-        working-directory: kernel_workspace/common
-        run: |
-          echo "Injecting missing binfmts.h header into SukiSU-Ultra..."
-          
-          # Fix adb_root.h missing struct user_arg_ptr
-          if [ -f "drivers/kernelsu/feature/adb_root.h" ]; then
-            sed -i '1i #include <linux/binfmts.h>' drivers/kernelsu/feature/adb_root.h
-            echo "✅ Fixed adb_root.h"
-          fi
-          
-          # Pre-emptively fix event.c in case it needs sched.h for task_struct
-          if [ -f "drivers/kernelsu/sulog/event.c" ]; then
-            sed -i '1i #include <linux/sched.h>\n#include <linux/binfmts.h>' drivers/kernelsu/sulog/event.c
-            echo "✅ Patched event.c"
-          fi
 
       - name: ⚙️ Configure Kernel Options
         run: |
