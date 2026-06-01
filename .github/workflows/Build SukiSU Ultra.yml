@@ -162,8 +162,8 @@ jobs:
         id: clang-cache
         uses: actions/cache@v4
         with:
-          path: kernel_workspace/zyc-clang
-          key: zyc-clang-19.0.0git-20240723
+          path: kernel_workspace/clang-r563880c
+          key: Linux-aosp-clang-clang-r563880c
 
       - name: Cache build-tools
         id: buildtools-cache
@@ -182,7 +182,7 @@ jobs:
           (sudo nice -n 19 ionice -c 3 rm -rf /usr/share/dotnet_trash /usr/local/lib/android_trash /opt/ghc_trash /usr/lib/jvm_trash) &
 
           rm -rf kernel_workspace/common kernel_workspace/out 2>/dev/null || true
-          mkdir -p kernel_workspace/zyc-clang kernel_workspace/build-tools
+          mkdir -p kernel_workspace/clang-r563880c kernel_workspace/build-tools
           cd kernel_workspace
 
           # apt — stripped to bare minimum, no purge/man-db waste
@@ -199,13 +199,13 @@ jobs:
 
           # Clang — only download if cache missed
           if [ "${{ steps.clang-cache.outputs.cache-hit }}" != "true" ]; then
-            echo "Cache miss — downloading ZyCromerZ Clang 19..."
-            mkdir -p zyc-clang
+            echo "Cache miss — downloading Clang ..."
+            mkdir -p clang-r563880c
             aria2c -x16 -s16 -k1M -j16 --retry-wait=5 --max-tries=10 \
-              -d /dev/shm -o zyc-clang.tar.gz \
-              "https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz"
-            tar -C zyc-clang -zxf /dev/shm/zyc-clang.tar.gz
-            rm -f /dev/shm/zyc-clang.tar.gz
+              -d /dev/shm -o clang-r563880c.tar.gz \
+              "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android16-qpr2-release/clang-r563880c.tar.gz"
+            tar -C clang-r563880c -zxf /dev/shm/clang-r563880c.tar.gz
+            rm -f /dev/shm/clang-r563880c.tar.gz
           else
             echo "Clang restored from cache, skipping download."
           fi &
@@ -1077,8 +1077,8 @@ jobs:
         run: |
           WORKDIR="$(pwd)"
           export MAP="-fdebug-prefix-map=${GITHUB_WORKSPACE}=. -fmacro-prefix-map=${GITHUB_WORKSPACE}=. -ffile-prefix-map=${GITHUB_WORKSPACE}=."
-          export PATH="$WORKDIR/kernel_workspace/zyc-clang/bin:$WORKDIR/kernel_workspace/build-tools/linux-x86/bin:$PATH"
-          CLANG_DIR="$WORKDIR/kernel_workspace/zyc-clang/bin"
+          export PATH="$WORKDIR/kernel_workspace/clang-r563880c/bin:$WORKDIR/kernel_workspace/build-tools/linux-x86/bin:$PATH"
+          CLANG_DIR="$WORKDIR/kernel_workspace/clang-r563880c/bin"
           echo "Clang: $($CLANG_DIR/clang --version | head -n 1)"
           echo "LLD:   $($CLANG_DIR/ld.lld --version | head -n 1)"
           pahole --version 2>/dev/null || echo "Pahole: Not Installed"
