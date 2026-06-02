@@ -385,27 +385,43 @@ jobs:
         if: github.event.inputs.SUSFS == 'true'
         working-directory: kernel_workspace/common
         run: |
-          SERVICES="security/selinux/ss/services.c"
-          RULES="KernelSU/kernel/selinux/rules.c"
-          
-          # 1. Define backup_sepolicy in rules.c
-          sed -i '/^#define ALL NULL/a\\n#ifdef CONFIG_KSU_SUSFS\nstruct selinux_policy *backup_sepolicy;\n#endif' "$RULES"
-          
-          # 2. Assign backup_sepolicy
-          sed -i '/rcu_assign_pointer(selinux_state.policy, pol);/a#ifdef CONFIG_KSU_SUSFS\n    backup_sepolicy = pol;\n#endif' "$RULES"
-          
-          # 3. DO NOT add functions to services.c - they already exist in kernel 6.6+
-          echo "✅ backup_sepolicy configured (skipping _with_policy functions - already in kernel)"
+          # 1. 在 selinux_hide.c 中定义缺失的符号
+          SELINUX_HIDE="drivers/kernelsu/feature/selinux_hide.c"
+          if [ -f "$SELINUX_HIDE" ]; then
+            # 添加缺失的符号定义
+            cat >> "$SELINUX_HIDE" << 'EOF'
       
-      - name: 🔧 Fix sulog USER_ARG_NULL compile error
-        working-directory: kernel_workspace/common/drivers/kernelsu/sulog
-        run: |
-          if grep -q "USER_ARG_NULL" event.c; then
-            sed -i 's/ksu_sulog_capture(KSU_SULOG_EVENT_IOCTL_GRANT_ROOT, NULL, USER_ARG_NULL,/ksu_sulog_capture(KSU_SULOG_EVENT_IOCTL_GRANT_ROOT, NULL, NULL,/' event.c
-            echo "✅ sulog USER_ARG_NULL fixed"
-          else
-            echo "Already clean, skipping"
+            /* Missing symbols for SUSFS inline hook mode */
+            #ifdef CONFIG_KSU_SUSFS
+            struct static_key_false fake_status_initialize_key = STATIC_KEY_FALSE_INIT;
+            EXPORT_SYMBOL_GPL(fake_status_initialize_key);
+      
+            bool ksu_selinux_hide_enabled = false;
+            EXPORT_SYMBOL_GPL(ksu_selinux_hide_enabled);
+      
+            struct selinux_state *fake_status;
+            EXPORT_SYMBOL_GPL(fake_status);
+      
+            int initialize_fake_status(void)
+            {
+            return 0;
+            }
+            EXPORT_SYMBOL_GPL(initialize_fake_status);
+            #endif
+            EOF
+            echo "✅ Added missing symbols to selinux_hide.c"
           fi
+
+           # 2. 原有的 backup_sepolicy 修复
+           SERVICES="security/selinux/ss/services.c"
+           RULES="KernelSU/kernel/selinux/rules.c"
+    
+           if [ -f "$RULES" ]; then
+             sed -i '/^#define ALL NULL/a\\n#ifdef CONFIG_KSU_SUSFS\nstruct selinux_policy *backup_sepolicy;\n#endif' "$RULES" || true
+      
+            sed -i '/rcu_assign_pointer(selinux_state.policy, pol);/a#ifdef CONFIG_KSU_SUSFS\n    backup_sepolicy = pol;\n#endif' "$RULES" || true
+            echo "✅ backup_sepolicy configured"
+           fi
 
       # ── FIX: Missing static key symbols for MANUAL_HOOK mode ────────────────
       - name: 🔧 Fix missing KSU static key symbols (SUSFS=false only)
