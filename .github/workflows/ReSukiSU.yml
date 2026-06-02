@@ -408,7 +408,7 @@ jobs:
             }
             EXPORT_SYMBOL_GPL(initialize_fake_status);
             #endif
-            EOF
+          EOF
             echo "✅ Added missing symbols to selinux_hide.c"
           fi
 
@@ -419,8 +419,8 @@ jobs:
            if [ -f "$RULES" ]; then
              sed -i '/^#define ALL NULL/a\\n#ifdef CONFIG_KSU_SUSFS\nstruct selinux_policy *backup_sepolicy;\n#endif' "$RULES" || true
       
-            sed -i '/rcu_assign_pointer(selinux_state.policy, pol);/a#ifdef CONFIG_KSU_SUSFS\n    backup_sepolicy = pol;\n#endif' "$RULES" || true
-            echo "✅ backup_sepolicy configured"
+             sed -i '/rcu_assign_pointer(selinux_state.policy, pol);/a#ifdef CONFIG_KSU_SUSFS\n    backup_sepolicy = pol;\n#endif' "$RULES" || true
+             echo "✅ backup_sepolicy configured"
            fi
 
       # ── FIX: Missing static key symbols for MANUAL_HOOK mode ────────────────
