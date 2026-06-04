@@ -70,7 +70,7 @@ jobs:
 
           echo "当前仓库：$REPO"
           echo "查找工作流 \"$WORKFLOW_NAME\" 的 ID..."
-          WORKFLOW_ID=$(gh api repos/$REPO/actions/workflows | jq -r ".workflows[] | select(.name == \"$WORKFLOW_NAME\") | .id")
+          WORKFLOW_ID=$(gh api repos/$REPO/actions/workflows | jq -r ".workflows[] | select(.path | contains(\"$WORKFLOW_NAME\")) | .id")
           if [ -z "$WORKFLOW_ID" ]; then
             echo "未找到工作流 \"$WORKFLOW_NAME\"，退出。"
             exit 1
