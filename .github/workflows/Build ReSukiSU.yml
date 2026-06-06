@@ -979,9 +979,7 @@ jobs:
           echo "KSU Branch: ${KSU_TYPENAME}" >> ./ak3.log
           echo "KSU Ver: ${KSUVER}" >> ./ak3.log
           echo "SuSFS: ${{ github.event.inputs.SUSFS }}" >> ./ak3.log
-          echo "KPM: ${{ github.event.inputs.KPM }}" >> ./ak3.log
           echo "LZ4: ${{ github.event.inputs.lz4_enable }}" >> ./ak3.log
-          echo "LZ4KD: ${{ github.event.inputs.lz4kd_enable }}" >> ./ak3.log
           echo "BBR&Brutal: ${{ github.event.inputs.bbr_enable }}" >> ./ak3.log
           echo "ADIOS: ${{ github.event.inputs.adios_enable }}" >> ./ak3.log
           echo "Re-Kernel: ${{ github.event.inputs.rekernel_enable }}" >> ./ak3.log
@@ -1158,7 +1156,7 @@ jobs:
           CAPTION="✅ <b>Kernel Build Successful!</b>
 
           📱 <b>Device:</b> <code>OnePlus 13</code>
-          ⚡ <b>KSU:</b> <code>SukiSU Ultra</code>
+          ⚡ <b>KSU:</b> <code>ReSukiSU</code>
           📅 <b>Date:</b> $DATE
           📝 <b>Commit:</b> <code>$COMMIT_MSG</code>
           🔢 <b>Hash:</b> <a href=\"$REPO_URL/commit/${{ github.sha }}\">$COMMIT_HASH</a>
