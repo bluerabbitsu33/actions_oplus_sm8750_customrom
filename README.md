@@ -201,5 +201,3 @@ This CI pipeline includes:
 | [TheWildJames](https://github.com/TheWildJames) | Unicode fix & additional kernel patches |
 | [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU/) | ReSukiSU & ReSukiSU patches |
 | [palazik](https://github.com/palazik/actions_oplus_sm8750) | Forked from this project |
-
----
