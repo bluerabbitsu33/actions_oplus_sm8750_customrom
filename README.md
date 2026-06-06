@@ -196,29 +196,10 @@ This CI pipeline includes:
 | [mrcxlinux](https://github.com/mrcxlinux) | The base workflow
 | [xiaomichael](https://github.com/xiaomichael) | Some help & GKI infrastructure |
 | [cctv18](https://github.com/cctv18) | SuSFS, ccache-ECS, Baseband Guard, public ccache |
-| [vc-teahouse](https://github.com/vc-teahouse) | SukiSU Ultra core & KPM framework |
 | [Numbersf](https://github.com/Numbersf) | Fengchi / HMBIRD scheduler patches |
 | [WildKernels](https://github.com/WildKernels) | 25 memory/scheduler optimization patches & workflow optimization |
-| [ShirkNeko](https://github.com/ShirkNeko) | LZ4KD & ZRAM patches |
-| [ZyCromerZ](https://github.com/ZyCromerZ) | Oryon-optimized Clang 19 toolchain |
 | [TheWildJames](https://github.com/TheWildJames) | Unicode fix & additional kernel patches |
+| [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU/) | ReSukiSU & ReSukiSU patches |
+| [palazik](https://github.com/palazik/actions_oplus_sm8750) | Forked from this project |
 
 ---
-
-## 🌟 Support the Project
-
-<p align="center">
-  If this kernel improves your daily driver, please consider:
-</p>
-
-<p align="center">
-  ⭐ <b>Starring this repository</b> – helps others discover it!<br>
-  🐛 <b>Reporting issues</b> – helps me fix bugs faster<br>
-  💡 <b>Suggesting features</b> – I read every issue!<br>
-  🔁 <b>Sharing your builds</b> – tag me in your Telegram/Discord posts
-</p>
-
-<p align="center">
-  <sub>Built with ❤️ by palaziks • Kernel version: <code>6.6.138-palaziks-ShiftPorts</code></sub>
-</p>
-```
