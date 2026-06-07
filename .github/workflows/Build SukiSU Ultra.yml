@@ -321,18 +321,6 @@ jobs:
           echo "Updating atime to achieve cache eviction..."
           find "${{ env.CCACHE_DIR }}" -type f -exec touch -t $(date -d "1 day ago" +%Y%m%d%H%M) {} + || true
 
-      - name: 🔍 Debug SukiSU structure
-        run: |
-          cd kernel_workspace/common/KernelSU
-          echo "=== KernelSU root Makefile ==="
-          cat Makefile | grep -i "KSU_VERSION" || echo "No KSU_VERSION found"
-          echo ""
-          echo "=== KernelSU/kernel/Makefile ==="
-          cat kernel/Makefile | grep -i "KSU_VERSION" || echo "No KSU_VERSION found"
-          echo ""
-          echo "=== KernelSU/kernel/Kbuild ==="
-          cat kernel/Kbuild 2>/dev/null | grep -i "KSU_VERSION" || echo "No KSU_VERSION found"
-              
       - name: ⚡ Setup SukiSU Ultra
         run: |
           cd kernel_workspace/common
