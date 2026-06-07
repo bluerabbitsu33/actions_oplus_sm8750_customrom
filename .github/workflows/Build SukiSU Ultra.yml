@@ -339,36 +339,47 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/builtin/kernel/setup.sh" | bash -s builtin
 
           cd KernelSU
-          
+
           KSU_VERSION_COUNT=$(git rev-list --count HEAD)
           export KSUVER=$(expr $KSU_VERSION_COUNT + 37185)
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
 
-          KBUILD_FILE="kernel/Makefile"
-          if [ -f "kernel/Kbuild" ]; then
-            KBUILD_FILE="kernel/Kbuild"
+          # 🔧 修复：检查父目录的 Makefile
+          KSU_MAKEFILE="../Makefile"  # 向上找到 KernelSU/Makefile
+
+          echo "🔍 Extracting API version from $KSU_MAKEFILE..."
+
+          # 优先从 KSU_VERSION 变量获取
+          KSU_API_VERSION=$(grep -E "^KSU_VERSION[[:space:]]*=" "$KSU_MAKEFILE" | cut -d'=' -f2 | tr -d '[:space:]')
+
+          # 备选：从 ccflags 中提取
+          if [ -z "$KSU_API_VERSION" ]; then
+          KSU_API_VERSION=$(grep -oP '(?<=-DKSU_VERSION=)\d+' "$KSU_MAKEFILE" | head -1)
           fi
 
-          echo "🔍 Extracting API version from local $KBUILD_FILE..."
-          
-          KSU_API_VERSION=$(grep -E "KSU_VERSION_API[[:space:]]*:=" "$KBUILD_FILE" | cut -d'=' -f2 | tr -d '[:space:]')
-          
-          if [ -z "$KSU_API_VERSION" ]; then
-            KSU_API_VERSION=$(grep -oP '(?<=-DKSU_VERSION=)\d+' "$KBUILD_FILE" | head -1)
+          # 再次备选：从 kernel 子目录的 Makefile 中查找
+          if [ -z "$KSU_API_VERSION" ] && [ -f "kernel/Makefile" ]; then
+          KSU_API_VERSION=$(grep -E "KSU_VERSION_API[[:space:]]*:=" "kernel/Makefile" | cut -d'=' -f2 | tr -d '[:space:]')
           fi
-          
+
           if [ -z "$KSU_API_VERSION" ]; then
-            echo "⚠️ Could not auto-detect API version. Falling back to default (11952)..."
-            KSU_API_VERSION="11952"
+          echo "⚠️ Could not auto-detect API version. Falling back to default (11952)..."
+          KSU_API_VERSION="11952"
           fi
 
           KSU_COMMIT_HASH=$(git rev-parse --short=8 HEAD)
-          
+
           echo "💉 Injecting custom version: v${KSU_API_VERSION}-${KSU_COMMIT_HASH}@palaziks"
-          
+
+          # 现在修改正确的 kernel/Makefile（这是编译时实际使用的）
+          KBUILD_FILE="kernel/Makefile"
+          if [ -f "kernel/Kbuild" ]; then
+          KBUILD_FILE="kernel/Kbuild"
+          fi
+
           sed -i 's/-DKSU_VERSION_FULL=[^ ]*//g' "$KBUILD_FILE"
           sed -i '/KSU_VERSION_FULL/d' "$KBUILD_FILE"
-          
+
           cat >> "$KBUILD_FILE" <<EOF
 
           ccflags-y += -DKSU_VERSION_FULL=\"v${KSU_API_VERSION}-${KSU_COMMIT_HASH}@palaziks\"
