@@ -166,9 +166,9 @@ jobs:
           sudo mv /usr/lib/jvm /usr/lib/jvm_trash 2>/dev/null || true
           (sudo nice -n 19 ionice -c 3 rm -rf /usr/share/dotnet_trash /usr/local/lib/android_trash /opt/ghc_trash /usr/lib/jvm_trash) &
 
-          rm -rf kernel_workspace/common kernel_workspace/out 2>/dev/null || true
-          mkdir -p kernel_workspace/clang-r563880c kernel_workspace/build-tools
-          cd kernel_workspace
+          rm -rf kernel_workspace/common kernel_workspace/out 2>/dev/null ||  true
+           mkdir -p kernel_workspace/zyc-clang kernel_workspace/build-tools
+           cd kernel_workspace
 
           # apt — stripped to bare minimum, no purge/man-db waste
           sudo apt-get install -y --no-install-recommends -o Dpkg::Use-Pty=0 \
@@ -182,27 +182,27 @@ jobs:
           mv android_kernel_common_oneplus_sm8750-* common &&
           rm -f common.zip &
 
-          # Clang — only download if cache missed
-          if [ "${{ steps.clang-cache.outputs.cache-hit }}" != "true" ]; then
-            echo "Cache miss — downloading Clang ..."
-            mkdir -p clang-r563880c
-            aria2c -x16 -s16 -k1M -j16 --retry-wait=5 --max-tries=10 \
-              -d /dev/shm -o clang-r563880c.tar.gz \
-              "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android16-qpr2-release/clang-r563880c.tar.gz"
-            tar -C clang-r563880c -zxf /dev/shm/clang-r563880c.tar.gz
-            rm -f /dev/shm/clang-r563880c.tar.gz
-          else
-            echo "Clang restored from cache, skipping download."
-          fi &
+          # Clang — only download if cache  missed
+           if [ "${{ steps.clang-cache.outputs.cache-hit }}" != "true" ];  then
+             echo "Cache miss — downloading ZyCromerZ Clang 19..."
+             mkdir -p zyc-clang
+             aria2c -x16 -s16 -k1M -j16 --retry-wait=5 --max-tries=10 \
+               -d /dev/shm -o zyc-clang.tar.gz \
+               "https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz"
+             tar -C zyc-clang -zxf /dev/shm/zyc-clang.tar.gz
+             rm -f /dev/shm/zyc-clang.tar.gz
+           else
+             echo "Clang restored from cache, skipping download."
+           fi &
 
-          # build-tools — only clone if cache missed
-          if [ "${{ steps.buildtools-cache.outputs.cache-hit }}" != "true" ]; then
-            echo "Cache miss — cloning build-tools..."
-            git clone --depth=1 -b ks-kernel.lnx.4.0.r1-rel \
-              https://git.codelinaro.org/clo/la/kernel/prebuilts/build-tools.git build-tools
-          else
-            echo "build-tools restored from cache, skipping clone."
-          fi &
+           # build-tools — only clone if cache missed
+           if [ "${{ steps.buildtools-cache.outputs.cache-hit }}" != "true" ];  then
+             echo "Cache miss — cloning build-tools..."
+             git clone --depth=1 -b ks-kernel.lnx.4.0.r1-rel \
+               https://git.codelinaro.org/clo/la/kernel/prebuilts/build-tools.git build-tools
+           else
+             echo "build-tools restored from cache, skipping clone."
+           fi &
 
           wait
 
