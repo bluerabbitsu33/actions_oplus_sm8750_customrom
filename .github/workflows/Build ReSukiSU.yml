@@ -432,20 +432,6 @@ jobs:
           fi
 
           cd ./common
-          
-          # ── WORKFLOW STRIP AND SED FIX ────────────────────────────────────
-          if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
-            echo "🔧 Stripping failing hunk and using custom sed for task_mmu.c..."
-            
-            # 1. Use sed to drop the entire problematic task_mmu.c section out of the patch payload
-            sed -i '/diff --git a\/fs\/proc\/task_mmu.c b\/fs\/proc\/task_mmu.c/,/diff --git/ { /diff --git b/!d }' 50_add_susfs_in_gki-android15-6.6.patch
-            # Clean up trailing artifact if it's the last element in the diff
-            sed -i '/diff --git a\/fs\/proc\/task_mmu.c b\/fs\/proc\/task_mmu.c/d' 50_add_susfs_in_gki-android15-6.6.patch
-
-            # 2. Inject the code safely by looking for the explicit 'Case 4' loop marker inside your code structure
-            sed -i '/\/\* Case 4 above \*\//,/smap_gather_stats(vma, &mss, last_vma_end);/c\ \t\t\t/* Case 4 above */\n\n\t\t\tif (vma->vm_end > last_vma_end) {\n#ifdef CONFIG_KSU_SUSFS_SUS_MAP\n\t\t\t\tif (!vma->vm_file || !(SUSFS_IS_INODE_SUS_MAP(file_inode(vma->vm_file)))) {\n\t\t\t\t\tsmap_gather_stats(vma, &mss, last_vma_end);\n\t\t\t\t}\n#else\n\t\t\t\tsmap_gather_stats(vma, &mss, last_vma_end);\n#endif\n\t\t\t}' fs/proc/task_mmu.c
-          fi
-          # ──────────────────────────────────────────────────────────────────
 
           cp ../kernel_patches/common/EnablePOLLY.patch ./
 
