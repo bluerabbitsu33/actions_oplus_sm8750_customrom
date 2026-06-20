@@ -434,7 +434,33 @@ jobs:
           fi
 
           cd ./common
-          
+
+          # ── WORKFLOW STRIP AND SED/AWK FIX ────────────────────────────────
+          if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
+            echo "🔧 Stripping failing hunk and applying block fixes for task_mmu.c..."
+            
+            # 1. Strip out the specific task_mmu.c file instruction from the patch payload entirely
+            sed -i '/diff --git a\/fs\/proc\/task_mmu.c b\/fs\/proc\/task_mmu.c/,/diff --git/ { /diff --git b/!d }' 50_add_susfs_in_gki-android15-6.6.patch
+            sed -i '/diff --git a\/fs\/proc\/task_mmu.c b\/fs\/proc\/task_mmu.c/d' 50_add_susfs_in_gki-android15-6.6.patch
+
+            # 2. Inject the header safely right below SENTINEL_VMA_GATE
+            sed -i '/#define SENTINEL_VMA_GATE/a #include <linux/susfs.h>' fs/proc/task_mmu.c
+
+            # 3. Cleanly insert the hook logic right before smap_gather_stats using awk
+            awk '
+            /smap_gather_stats\(vma, &mss, last_vma_end\);/ {
+                print "#ifdef CONFIG_KSU_SUSFS_SUS_MAP"
+                print "\t\t\tif (vma->vm_file && SUSFS_IS_INODE_SUS_MAP(file_inode(vma->vm_file))) {"
+                print "\t\t\t\tcontinue;"
+                print "\t\t\t}"
+                print "#endif"
+            }
+            { print }
+            ' fs/proc/task_mmu.c > fs/proc/task_mmu.c.tmp && mv fs/proc/task_mmu.c.tmp fs/proc/task_mmu.c
+
+          fi
+          # ──────────────────────────────────────────────────────────────────
+
           cp ../kernel_patches/common/EnablePOLLY.patch ./
 
           echo "📦 Enabling POLLY support..."
@@ -442,7 +468,7 @@ jobs:
 
           if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
             echo "📦 Applying SUSFS patch..."
-            patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
+            patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch
           fi
 
           echo "✅ Base patches applied"
