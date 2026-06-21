@@ -1225,7 +1225,7 @@ jobs:
           TIME_FORM="$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')"
           echo "TIME=$TIME" >> $GITHUB_ENV
           echo "TIME_FORM=$TIME_FORM" >> $GITHUB_ENV
-          TAG_HEAD="OPlus_ReSukiSU_SM8750_CustomRom-KernelBuild_Compiling_AOSP-Clang"
+          TAG_HEAD="OPlus-ReSukiSU-SM8750-CustomRom-KernelBuild"
           echo "TAG_HEAD=$TAG_HEAD" >> $GITHUB_ENV
           KSU_TYPENAME="ReSukiSU"
           echo "KSU_TYPENAME=$KSU_TYPENAME" >> $GITHUB_ENV
@@ -1237,6 +1237,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cat << 'EOF' > release_notes.md
+          ### 📱 OPlus ReSukiSU SM8750 CustomRom-KernelBuild (Compiling AOSP-Clang)
           - **Kernel Version:** ${{ env.FULL_VERSION }}
           - **Build Time:** ${{ env.TIME_FORM }}
           - **KSU Branch:** ReSukiSU
