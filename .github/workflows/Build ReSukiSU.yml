@@ -1,4 +1,4 @@
-name: ReSukiSU OP13 Build pal
+name: ReSukiSU OP13 Build
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-6.6.139
