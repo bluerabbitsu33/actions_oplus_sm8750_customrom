@@ -1,4 +1,4 @@
-name: SukiSU Ultra OP13 Build
+name: SukiSU Ultra OP13 Build(old)
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-6.6.139
