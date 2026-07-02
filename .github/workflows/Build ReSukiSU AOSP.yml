@@ -880,9 +880,7 @@ jobs:
             exit 1
           fi
           KSU_TYPENAME="ReSukiSU"
-          if [[ "${{ github.event.inputs.lz4kd_enable }}" == "true" ]]; then
-            wget https://raw.githubusercontent.com/$GITHUB_REPOSITORY/refs/heads/$GITHUB_REF_NAME/zram.zip || true
-          fi
+          
           AK3_NAME=AnyKernel3_${KSU_TYPENAME}_${{ env.KSUVER }}_6.6.139_palaziks_AOSP-ShiftPorts.zip
           FULL_VERSION=6.6.139-palaziks_AOSP-ShiftPorts
           zip -r ../$AK3_NAME ./*
