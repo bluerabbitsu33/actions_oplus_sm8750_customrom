@@ -138,6 +138,14 @@ jobs:
       actions: write
       contents: read
     steps:
+      - name: 🧠 Add swap space (for LTO link)
+        run: |
+          sudo fallocate -l 10G /mnt/swap_lto || sudo dd if=/dev/zero of=/mnt/swap_lto bs=1M count=10240
+          sudo chmod 600 /mnt/swap_lto
+          sudo mkswap /mnt/swap_lto
+          sudo swapon /mnt/swap_lto
+          echo "── swap after ──"; free -h
+
       - name: Cache Clang
         id: clang-cache
         uses: actions/cache@v4
