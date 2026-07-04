@@ -67,11 +67,11 @@ on:
         required: true
         type: boolean
         default: true
-      unicode_fix:
-        description: 'Enable Unicode Bypass Fix (path traversal protection)'
+      bore_enable:
+        description: 'Enable BORE Scheduler (Burst-Oriented Response Enhancer, off by default)'
         required: true
         type: boolean
-        default: true
+        default: false
       zram_writeback:
         description: 'Enable ZRAM Writeback (better memory management)'
         required: true
@@ -537,13 +537,23 @@ jobs:
           echo "✅ Oryon flags prepared."
 
       - name: Apply Unicode Bypass Fix
-        if: inputs.unicode_fix
+
         working-directory: kernel_workspace/common
         run: |
           PATCH_URL="https://github.com/TheWildJames/kernel_patches/raw/main/common/unicode_bypass_fix_6.1+.patch"
           wget -qO /tmp/ub_fix.patch "$PATCH_URL" 2>/dev/null && \
             patch -p1 --forward < /tmp/ub_fix.patch || true
           echo "Unicode fix applied"
+
+      - name: Apply BORE Scheduler
+        if: inputs.bore_enable
+        working-directory: kernel_workspace/common
+        run: |
+          echo "CONFIG_SCHED_BORE=y" >> arch/arm64/configs/gki_defconfig
+          BORE_URL="https://github.com/$GITHUB_REPOSITORY/raw/refs/heads/$GITHUB_REF_NAME/patches/bore.patch"
+          wget -qO /tmp/bore.patch "$BORE_URL"
+          patch -p1 -F 3 < /tmp/bore.patch
+          echo "✅ BORE scheduler applied"
 
       # ── NEW: Memory & Scheduler Optimization Patches (WildKernels) ───────────
       - name: Apply Memory & Scheduler Optimization Patches
@@ -951,6 +961,7 @@ jobs:
           echo "IP_SET+IPv6NAT: ${{ github.event.inputs.ip_set_enable }}" >> ./ak3.log
           echo "TTL: ${{ github.event.inputs.ttl_enable }}" >> ./ak3.log
           echo "MemOpt: ${{ github.event.inputs.mem_opt_patches }}" >> ./ak3.log
+          echo "BORE: ${{ github.event.inputs.bore_enable }}" >> ./ak3.log
           zip -z ../$AK3_NAME < ./ak3.log
 
       - name: 📤 Upload AnyKernel3
@@ -1011,7 +1022,8 @@ jobs:
           export TG_MM="true"
           export TG_FENGCHI="${{ github.event.inputs.fengchi }}"
           export TG_HMBIRD="false"
-          export TG_UFIX="${{ github.event.inputs.unicode_fix }}"
+          export TG_UFIX="true"
+          export TG_BORE="${{ github.event.inputs.bore_enable }}"
           export TG_ZWB="${{ github.event.inputs.zram_writeback }}"
           export TG_SCHED="${{ github.event.inputs.schedutil_opt }}"
           export TG_CLANG="clang-r563880c"
@@ -1061,6 +1073,7 @@ jobs:
                   feat(e("TG_MM"),      "Multi-Manager Support"),
                   feat(e("TG_FENGCHI"),"Fengchi Optimization"),
                   feat(e("TG_UFIX"),    "Unicode Bypass Fix"),
+                  feat(e("TG_BORE"),    "BORE Scheduler (EEVDF burst enhancer)"),
                   feat(e("TG_ZWB"),     "ZRAM Writeback"),
                   feat(e("TG_SCHED"),  "SchedUtil Optimizations"),
                   feat(e("TG_CPU_OPT"),"Oryon CPU Optimizations"),
@@ -1220,7 +1233,8 @@ jobs:
           - **Baseband Guard:** ${{ github.event.inputs.baseband_guard }}
           - **Fengchi:** ${{ github.event.inputs.fengchi }}
           - **Oryon CPU Optimizations:** ${{ github.event.inputs.cpu_opt }}
-          - **Unicode Fix:** ${{ github.event.inputs.unicode_fix }}
+          - **Unicode Fix:** true (stock)
+          - **BORE Scheduler:** ${{ github.event.inputs.bore_enable }}
           - **WireGuard:** ${{ github.event.inputs.wireguard }}
           - **Wakelock Blocker:** ${{ github.event.inputs.wakelock_blocker }}
           - **Tested devices and systems:**
