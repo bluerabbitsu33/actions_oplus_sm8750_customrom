@@ -1246,8 +1246,8 @@ jobs:
           - **WireGuard:** ${{ github.event.inputs.wireguard }}
           - **Wakelock Blocker:** ${{ github.event.inputs.wakelock_blocker }}
           - **Tested devices and systems:**
-              OnePlus Pad 3/OnePlus Pad 2 Pro [crDroidAndroid-16.0-20260622-erhai-v12.11]
-              OnePlus 13 [crDroidAndroid-16.0-20260622-dodge-v12.11]
+              OnePlus Pad 3/OnePlus Pad 2 Pro [crDroidAndroid-16.0-20260702-erhai-v12.11]
+              OnePlus 13 [crDroidAndroid-16.0-20260702-dodge-v12.11]
           - **For other SM8750 models, please test these custom ROMs yourself and back up the boot partition and other partitions just in case.**
           EOF
 
