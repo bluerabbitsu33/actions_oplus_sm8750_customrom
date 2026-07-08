@@ -190,10 +190,10 @@ jobs:
             echo "Cache miss — downloading clang-r563880c..."
             mkdir -p clang-r563880c
             aria2c -x16 -s16 -k1M -j16 --retry-wait=5 --max-tries=10 \
-              -d /dev/shm -o clang-r563880c.tar.gz \
+              -d /tmp -o clang-r563880c.tar.gz \
               "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android16-qpr2-release/clang-r563880c.tar.gz"
-            tar -C clang-r563880c -zxf /dev/shm/clang-r563880c.tar.gz
-            rm -f /dev/shm/clang-r563880c.tar.gz
+            tar -C clang-r563880c -zxf /tmp/clang-r563880c.tar.gz
+            rm -f /tmp/clang-r563880c.tar.gz
           else
             echo "Clang restored from cache, skipping download."
           fi &
@@ -255,8 +255,8 @@ jobs:
       - name: Configure CCache Directory
         run: |
           echo "CCACHE_DIR=$HOME/.ccache_6.6.139" >> $GITHUB_ENV
-          echo "LDCACHE_DIR=/dev/shm/ldcache_6.6.139" >> $GITHUB_ENV
-          mkdir -p /dev/shm/ldcache_6.6.139
+          echo "LDCACHE_DIR=$GITHUB_WORKSPACE/ldcache_6.6.139" >> $GITHUB_ENV
+          mkdir -p $GITHUB_WORKSPACE/ldcache_6.6.139
           echo "CCACHE_MAXSIZE=10G" >> $GITHUB_ENV
           echo "Current Disk Space:"
           df -h
@@ -832,14 +832,14 @@ jobs:
           export CCACHE_IS_KERNEL_COMPILING=true
 
           # RAM disk for build output (15GB RAM available, safe to use)
-          mkdir -p /dev/shm/kout
-          mkdir -p /dev/shm/ldcache_6.6.139
+          mkdir -p $GITHUB_WORKSPACE/kout
+          mkdir -p $GITHUB_WORKSPACE/ldcache_6.6.139
 
           cd kernel_workspace/common
 
           # LTO thin cache wrapper pointing to RAM disk
           echo '#!/bin/bash' > ld-wrapper
-          echo 'ld.lld "$@" --thinlto-cache-dir=/dev/shm/ldcache_6.6.139 --thinlto-jobs=$(($(nproc --all) / 2))' >> ld-wrapper
+          echo 'ld.lld "$@" --thinlto-cache-dir=$GITHUB_WORKSPACE/ldcache_6.6.139 --thinlto-jobs=$(($(nproc --all) / 2))' >> ld-wrapper
           chmod +x ld-wrapper
 
           wget https://github.com/$GITHUB_REPOSITORY/raw/refs/heads/$GITHUB_REF_NAME/lib/libfakestat.so || true
@@ -853,14 +853,14 @@ jobs:
           # defconfig pass — output to RAM disk
           make -j$(nproc --all) LLVM=1 LLVM_IAS=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
             CC="ccache clang" LD="$(pwd)/ld-wrapper" HOSTLD="$(pwd)/ld-wrapper" \
-            O=/dev/shm/kout \
+            O=$GITHUB_WORKSPACE/kout \
             KCFLAGS="-O2 -pipe -Wno-error -Wno-implicit-function-declaration -Wno-implicit-int -Wno-default-const-init-var-unsafe -Wno-format -Wno-unknown-warning-option" \
             gki_defconfig
 
           # Image build — output to RAM disk
           make -j$(nproc --all) LLVM=1 LLVM_IAS=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
             CC="ccache clang" LD="$(pwd)/ld-wrapper" HOSTLD="$(pwd)/ld-wrapper" \
-            O=/dev/shm/kout \
+            O=$GITHUB_WORKSPACE/kout \
             KCFLAGS="-O2 -pipe -Wno-error -Wno-implicit-function-declaration -Wno-implicit-int -Wno-default-const-init-var-unsafe -Wno-format -Wno-unknown-warning-option ${EXTRA_CFLAGS:-} ${MAP}" \
             Image
 
@@ -892,7 +892,7 @@ jobs:
           git clone https://github.com/palazik/AnyKernel3 --depth=1
           rm -rf ./AnyKernel3/.git
           cd AnyKernel3
-          cp /dev/shm/kout/arch/arm64/boot/Image ./Image
+          cp $GITHUB_WORKSPACE/kout/arch/arm64/boot/Image ./Image
           if [[ ! -f ./Image ]]; then
             echo "Kernel Image not found, build may have failed."
             exit 1
