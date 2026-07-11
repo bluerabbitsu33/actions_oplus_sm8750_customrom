@@ -1,7 +1,7 @@
 name: SukiSU Ultra OP13 AOSP Build
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-6.6.139
+  group: ${{ github.workflow }}-${{ github.ref }}-6.6.141
   cancel-in-progress: true
 
 env:
@@ -9,7 +9,7 @@ env:
   ANDROID_VERSION: 'android15'
   KERNEL_VERSION: '6.6'
   KERNEL_NAME: 'android15-8-g29d86c5fc9dd-abogki428889875-4k'
-  CCACHE_KEY: ccache-neov4-6.6.139
+  CCACHE_KEY: ccache-neov4-6.6.141
 
 on:
   workflow_dispatch:
@@ -184,7 +184,7 @@ jobs:
 
           # Source clone
           echo "Cloning source repository..."
-          curl -L https://github.com/palazik/android_kernel_common_oneplus_sm8750/archive/refs/heads/6.6.139_oneplus13_coloros16.zip \
+          curl -L https://github.com/palazik/android_kernel_common_oneplus_sm8750/archive/refs/heads/6.6.141_oneplus13_coloros16.zip \
             -o common.zip &&
           unzip -q common.zip &&
           mv android_kernel_common_oneplus_sm8750-* common &&
@@ -259,13 +259,13 @@ jobs:
 
       - name: Configure CCache Directory
         run: |
-          echo "CCACHE_DIR=$HOME/.ccache_6.6.139" >> $GITHUB_ENV
-          echo "LDCACHE_DIR=$GITHUB_WORKSPACE/ldcache_6.6.139" >> $GITHUB_ENV
-          mkdir -p $GITHUB_WORKSPACE/ldcache_6.6.139
+          echo "CCACHE_DIR=$HOME/.ccache_6.6.141" >> $GITHUB_ENV
+          echo "LDCACHE_DIR=$GITHUB_WORKSPACE/ldcache_6.6.141" >> $GITHUB_ENV
+          mkdir -p $GITHUB_WORKSPACE/ldcache_6.6.141
           echo "CCACHE_MAXSIZE=10G" >> $GITHUB_ENV
           echo "Current Disk Space:"
           df -h
-          echo "Current Build Kernel Version: 6.6.139"
+          echo "Current Build Kernel Version: 6.6.141"
 
       - name: Restore CCache
         uses: actions/cache/restore@v4
@@ -299,7 +299,7 @@ jobs:
           
           echo "Cache miss, attempting to pull public ccache..."
           mkdir -p ${{ env.CCACHE_DIR }}
-          FILE_NAME="ccache-6.6.139.tar.zst"
+          FILE_NAME="ccache-6.6.141.tar.zst"
           
           if gh release download -p "$FILE_NAME" -R cctv18/public_ccache; then
             echo "Successfully downloaded $FILE_NAME, extracting..."
@@ -873,13 +873,13 @@ jobs:
 
           # RAM disk for build output (15GB RAM available, safe to use)
           mkdir -p $GITHUB_WORKSPACE/kout
-          mkdir -p $GITHUB_WORKSPACE/ldcache_6.6.139
+          mkdir -p $GITHUB_WORKSPACE/ldcache_6.6.141
 
           cd kernel_workspace/common
 
           # LTO thin cache wrapper pointing to RAM disk
           echo '#!/bin/bash' > ld-wrapper
-          echo 'ld.lld "$@" --thinlto-cache-dir=$GITHUB_WORKSPACE/ldcache_6.6.139 --thinlto-jobs=$(($(nproc --all) / 2))' >> ld-wrapper
+          echo 'ld.lld "$@" --thinlto-cache-dir=$GITHUB_WORKSPACE/ldcache_6.6.141 --thinlto-jobs=$(($(nproc --all) / 2))' >> ld-wrapper
           chmod +x ld-wrapper
 
           wget https://github.com/$GITHUB_REPOSITORY/raw/refs/heads/$GITHUB_REF_NAME/lib/libfakestat.so || true
@@ -916,7 +916,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ccache-neov4-6.6.139-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
+          key: ccache-neov4-6.6.141-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
 
       - name: 📦 Save LTO CCache
         if: success() && inputs.lto_type == 'thin'
@@ -941,8 +941,8 @@ jobs:
           if [[ "${{ github.event.inputs.lz4kd_enable }}" == "true" ]]; then
             wget https://raw.githubusercontent.com/$GITHUB_REPOSITORY/refs/heads/$GITHUB_REF_NAME/zram.zip || true
           fi
-          AK3_NAME=AnyKernel3_${KSU_TYPENAME}_${{ env.KSUVER }}_6.6.139_palaziks_AOSP-ShiftPorts.zip
-          FULL_VERSION=6.6.139-palaziks_AOSP-ShiftPorts
+          AK3_NAME=AnyKernel3_${KSU_TYPENAME}_${{ env.KSUVER }}_6.6.141_palaziks_AOSP-ShiftPorts.zip
+          FULL_VERSION=6.6.141-palaziks_AOSP-ShiftPorts
           zip -r ../$AK3_NAME ./*
           echo "ak3name=$AK3_NAME" >> $GITHUB_OUTPUT
           
@@ -1006,12 +1006,12 @@ jobs:
         run: |
           DATE=$(date +"%Y-%m-%d %H:%M:%S %Z")
           COMMIT_HASH=$(echo "${{ github.sha }}" | cut -c1-8)
-          COMMIT_MSG="Workflow Dispatch: 6.6.139"
+          COMMIT_MSG="Workflow Dispatch: 6.6.141"
           REPO_URL="https://github.com/${{ github.repository }}"
           RUN_URL="$REPO_URL/actions/runs/${{ github.run_id }}"
           TIME_NOW="$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')"
 
-          export TG_KERNEL_VERSION="6.6.139"
+          export TG_KERNEL_VERSION="6.6.141"
           export TG_KSU_DISPLAY="SukiSU Ultra"
           export TG_KSUVER="${{ env.KSUVER }}"
           export TG_SUFFIX="palaziks-ShiftPorts"
@@ -1202,7 +1202,7 @@ jobs:
 
       - name: Set Environment Variables
         run: |
-          FULL_VERSION=6.6.139-palaziks-ShiftPorts
+          FULL_VERSION=6.6.141-palaziks-ShiftPorts
           echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
           TIME="$(TZ='Asia/Shanghai' date +'%y%m%d%H%M%S')"
           TIME_FORM="$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S')"
