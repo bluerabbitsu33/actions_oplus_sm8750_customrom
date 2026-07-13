@@ -1142,7 +1142,7 @@ jobs:
 
           CAPTION="✅ <b>Kernel Build Successful!</b>
 
-          📱 <b>Device:</b> <code>OnePlus 13</code>
+          📱 <b>Device:</b> <code>OnePlus 13 AOSP</code>
           ⚡ <b>KSU:</b> <code>SukiSU Ultra</code>
           📅 <b>Date:</b> $DATE
           📝 <b>Commit:</b> <code>$COMMIT_MSG</code>
@@ -1166,7 +1166,7 @@ jobs:
           REPO_URL="https://github.com/${{ github.repository }}"
           CAPTION="❌ <b>Kernel Build Failed!</b>
 
-          📱 <b>Device:</b> <code>OnePlus 13</code>
+          📱 <b>Device:</b> <code>OnePlus 13 AOSP</code>
           ⚡ <b>KSU:</b> <code>SukiSU Ultra</code>
           📅 <b>Date:</b> $DATE
           📝 <b>Commit:</b> <code>$COMMIT_MSG</code>
