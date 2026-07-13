@@ -22,12 +22,12 @@
 
 | Property | Value |
 |----------|-------|
-| **Version** | `6.6.141` (upstreamed from 6.6.89) |
+| **Kernel Version** | `6.6.141` (upstreamed from OGKI 6.6.89) |
 | **Chipset** | `SM8750` \| Snapdragon 8 Elite \| sun |
 | **Kernel Version** | `Linux 6.6` (GKI Android 15) |
 | **Android Version** | `15 VanillaIceCream` (compatible with later versions) |
 | **ROM Compatibility** | **custom rom (CrDroid has been tested and works fine; other custom roms should work in theory—please try them yourself.)** |
-| **Root Solution** | ReSukiSU / SukiSU Ultra (Multi-Manager) |
+| **Root Solution** | SukiSU Ultra / ReSukiSU |
 | **Build System** | GitHub Actions CI/CD (optimized for ~5-6min builds) |
 
 ---
