@@ -22,7 +22,7 @@
 
 | Property | Value |
 |----------|-------|
-| **Kernel Version** | `6.6.141` (upstreamed from OGKI 6.6.89) |
+| **Kernel Version** | `6.6.142` (upstreamed from OGKI 6.6.89) |
 | **Chipset** | `SM8750` \| Snapdragon 8 Elite \| sun |
 | **Kernel Version** | `Linux 6.6` (GKI Android 15) |
 | **Android Version** | `15 VanillaIceCream` (compatible with later versions) |
