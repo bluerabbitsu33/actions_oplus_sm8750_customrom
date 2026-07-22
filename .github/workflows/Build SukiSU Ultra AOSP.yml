@@ -563,7 +563,7 @@ jobs:
           patch -p1 -F 3 < /tmp/bore.patch
           echo "✅ BORE scheduler applied"
 
-      # ── NEW: Memory & Scheduler Optimization Patches (WildKernels) ───────────
+
       - name: Apply Memory & Scheduler Optimization Patches
         if: inputs.mem_opt_patches
         working-directory: kernel_workspace/common
