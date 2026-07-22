@@ -641,7 +641,7 @@ jobs:
           EOF
           echo "✅ Droidspaces support enabled"
 
-      # ── NEW: IP_SET + IPv6 NAT ───────────────────────────────────────────────
+
       - name: Add IP_SET + IPv6 NAT Support
         if: inputs.ip_set_enable
         working-directory: kernel_workspace/common
